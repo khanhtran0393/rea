@@ -85,4 +85,4 @@ Do not assume `rea-agents` is a stable importable application library. REA docum
 - Separate observed facts from hypotheses. A decompiler's pseudocode or static relationship is not proof of runtime behavior.
 - Report unknown behavior and analysis coverage rather than promising a perfect reconstruction.
 
-See the [REA Skill](../.agents/skills/reverse-engineer-anything/SKILL.md) and [CLI guide](./cli.md) for investigation details.
+See the [REA Skill](https://github.com/morluto/rea/blob/main/.agents/skills/reverse-engineer-anything/SKILL.md) and [CLI guide](./cli.md) for investigation details.
