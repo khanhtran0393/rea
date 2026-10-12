@@ -19,6 +19,7 @@ export default defineConfig({
           { text: "Installation and setup", link: "/installation" },
           { text: "CLI and Evidence", link: "/cli" },
           { text: "Agent prompts", link: "/mcp-prompts" },
+          { text: "AI feature integration", link: "/app-feature-integration" },
           { text: "Roadmap", link: "/roadmap" },
         ],
       },
