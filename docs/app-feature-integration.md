@@ -1,6 +1,7 @@
 # Integrating app features with AI and REA
 
-This guide describes the recommended hybrid architecture for studying a feature in an application and implementing an equivalent feature in a separate project.
+This guide describes the recommended hybrid architecture for studying a feature in an application and implementing an equivalent feature in a separate
+project.
 
 ## Recommended architecture
 
@@ -26,7 +27,9 @@ flowchart TD
 | Feature module | Implement the new behavior using the destination project's architecture | Yes |
 | Destination UI | Expose the module to the user if UI integration is requested | Yes, when in scope |
 
-**Key distinction:** the Skill does not perform reverse engineering by itself. It guides the coding agent, which calls REA MCP/CLI. REA returns evidence; the agent uses that evidence to specify, implement, and test a separate module.
+**Key distinction:** the Skill does not perform reverse engineering by itself.
+It guides the coding agent, which calls REA MCP/CLI. REA returns evidence;
+the agent uses that evidence to specify, implement, and test a separate module.
 
 ## Setup
 
@@ -38,17 +41,21 @@ From a project environment with a supported Node.js version and npm:
 npx rea-agents@latest setup
 ```
 
-Review the proposed configuration changes and approve them. Restart or reconnect the agent afterward. Follow [installation and setup](./installation.md) for provider requirements and troubleshooting.
+Review the proposed configuration changes and approve them. Restart or
+reconnect the agent afterward. Follow [installation and setup](./installation.md)
+for provider requirements and troubleshooting.
 
 ### 2. Install the integration Skill
 
-Once this Skill is available on the repository's default branch, install it into the destination project:
+Once this Skill is available on the repository's default branch, install it
+into the destination project:
 
 ```bash
 npx skills add khanhtran0393/rea --skill app-feature-integrator
 ```
 
-Installing a Skill adds instructions; it does **not** register the REA MCP server or install native analysis engines. Those are separate setup steps.
+Installing a Skill adds instructions; it does **not** register the REA MCP
+server or install native analysis engines. Those are separate setup steps.
 
 ### 3. Ask for a bounded feature
 
@@ -56,7 +63,8 @@ Example prompt:
 
 > Use REA to investigate the authorized local application at `D:/apps/source-app`, focusing only on its subtitle export feature. Write a feature specification, implement an independently tested equivalent module in this repository, and report evidence, unknowns, and tests. Do not copy source code or assets from the original application.
 
-Replace the example path with the real target and make sure the destination project is the active workspace.
+Replace the example path with the real target and make sure the destination
+project is the active workspace.
 
 ## Implementation workflow
 
@@ -70,11 +78,19 @@ Replace the example path with the real target and make sure the destination proj
 
 ## Module design guidance
 
-A feature module might live at `modules/<feature-slug>/`, with its specification at `specs/<feature-slug>.md`, but do not force these directories onto a repository that has a different established structure.
+A feature module might live at `modules/<feature-slug>/`, with its
+specification at `specs/<feature-slug>.md`, but do not force these directories
+onto a repository that has a different established structure.
 
-Keep a narrow public interface and isolate provider/API calls from business logic. Use explicit configuration, typed contracts, bounded timeouts, cancellation, error handling, and tests. Keep secrets out of logs and reports.
+Keep a narrow public interface and isolate provider/API calls from business
+logic. Use explicit configuration, typed contracts, bounded timeouts,
+cancellation, error handling, and tests. Keep secrets out of logs and reports.
 
-Do not assume `rea-agents` is a stable importable application library. REA documents CLI and MCP usage; use those interfaces unless a supported public library API has been independently verified. Do not bundle REA into a production application unless in-app reverse-engineering is itself an explicit product requirement.
+Do not assume `rea-agents` is a stable importable application library. REA
+documents CLI and MCP usage; use those interfaces unless a supported public
+library API has been independently verified. Do not bundle REA into a
+production application unless in-app reverse-engineering is itself an explicit
+product requirement.
 
 ## Evidence and responsible use
 
