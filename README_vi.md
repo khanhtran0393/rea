@@ -19,7 +19,7 @@
 
 **[Trang web](https://rea.tools/vi/) · [Hướng dẫn](https://rea.tools/vi/guides/) · [Các nghiên cứu điển hình](https://rea.tools/vi/showcase/)**
 
-[Bắt đầu nhanh](#bắt-đầu-nhanh) · [Cách REA hoạt động](#cách-rea-hoạt-động) · [Những gì bạn có thể phân tích](#những-gì-bạn-có-thể-phân-tích) · [Các nghiên cứu điển hình](#các-nghiên-cứu-điển-hình) · [Câu hỏi thường gặp](#câu-hỏi-thường-gặp) · [Tài liệu](#tài-liệu)
+[Bắt đầu nhanh](#bắt-đầu-nhanh) · [Cách REA hoạt động](#cách-rea-hoạt-động) · [Những gì bạn có thể phân tích](#những-gì-bạn-có-thể-phân-tích) · [Các nghiên cứu điển hình](#các-nghiên-cứu-điển-hình) · [Câu hỏi thường gặp](#câu-hỏi-thường-gặp) · [Tài liệu](#tài-liệu) · [Tích hợp chức năng bằng AI](docs/app-feature-integration.md)
 
 <code>npx rea-agents setup</code>
 
@@ -251,6 +251,7 @@ Bắt đầu với [hướng dẫn thực hành](https://rea.tools/vi/guides/) t
 - [Kiểm tra mức sẵn sàng và khắc phục sự cố](docs/installation.md#check-readiness-for-your-task): chẩn đoán một tác nhân hoặc bộ máy phân tích cụ thể.
 - [CLI và Evidence](docs/cli.md): lệnh, lựa chọn trình phân tích, ảnh chụp trạng thái, nhập/xuất và trạng thái thoát.
 - [Hợp đồng MCP](docs/mcp-contracts.md) và [prompt cho tác nhân](docs/mcp-prompts.md): kết quả công cụ, phiên làm việc và điều tra có hướng dẫn.
+- [Tích hợp chức năng bằng AI](docs/app-feature-integration.md): dùng bằng chứng từ REA để đặc tả, xây dựng và kiểm thử module độc lập.
 - [Danh mục công cụ](docs/mcp-contracts.md#generated-catalog): danh sách công cụ, trình phân tích và lệnh CLI được tạo khi dựng dự án.
 - [Lộ trình](docs/roadmap.md): công việc dự kiến và theo dõi các khả năng.
 
