@@ -1,76 +1,30 @@
-# U-Boot legacy uImage containers
+# Container U-Boot legacy uImage
 
-`inspect-artifact` and `extract-artifact` recognize the big-endian
-`0x27051956` legacy uImage signature regardless of filename. They read local
-stored bytes without booting, executing, decompressing or modifying the image.
-FIT is a different format; its analysis is outside this reader.
+`inspect-artifact` và `extract-artifact` nhận diện chữ ký legacy uImage dạng big-endian `0x27051956` bất kể tên tệp. Chúng đọc các byte được lưu trữ cục bộ mà không khởi động, thực thi, giải nén hay sửa đổi hình ảnh (image). FIT là một định dạng khác; phân tích FIT nằm ngoài trình đọc này.
 
-The same domain header/table facts and artifact reader serve CLI and MCP.
-The root is an archive with unknown executable architecture. The header's CPU,
-OS, type, compression, load address and entry address are declarations, not proof of
-compatible or executable payloads. Raw numeric identifiers remain available
-alongside names. Type names cover every image type in the pinned
-`include/image.h`, using U-Boot's `mkimage -T` names; `IH_TYPE_LOADABLE` (22)
-has none and is named `loadable`. Unrecognized identifiers have the name
-`unknown`.
+Cùng các dữ kiện tiêu đề/bảng miền và trình đọc artifact phục vụ cả CLI và MCP. Gốc là một kho lưu trữ với kiến trúc thực thi chưa xác định. CPU, OS, loại, kiểu nén, địa chỉ nạp và địa chỉ entry trong header là các khai báo, không phải bằng chứng về tải trọng tương thích hay thực thi được. Các mã định danh số thô vẫn được cung cấp bên cạnh tên. Tên loại bao gồm mọi loại hình ảnh trong `include/image.h` đã ghim, sử dụng tên từ `mkimage -T` của U-Boot; `IH_TYPE_LOADABLE` (22) không có tên và được gọi là `loadable`. Mã định danh không nhận diện được có tên là `unknown`.
 
-The header's CRC32 and the declared payload's CRC32 must verify before a
-successful inventory. `payload.bin` contains the complete stored payload.
-Multi-file images also expose `image-0.bin`, `image-1.bin`, and so on. These
-component names are generated from table order. Components follow the zero-terminated big-endian size table, with four-byte
-padding after every nonfinal component. Script images (`boot.scr`) carry the
-same table, so their script text is `image-0.bin`. Component physical source
-ranges and content hashes retain precise provenance. Extraction writes the complete
-payload and every component, so multi-file output can approach twice the input
-size. Compressed payloads remain compressed.
+CRC32 của header và CRC32 của tải trọng khai báo phải được xác minh trước khi kiểm kê thành công. `payload.bin` chứa toàn bộ tải trọng được lưu trữ. Hình ảnh đa tệp (multi-file images) cũng hiển thị `image-0.bin`, `image-1.bin`, v.v. Tên thành phần này được sinh từ thứ tự bảng. Các thành phần tuân theo bảng kích thước big-endian kết thúc bằng số 0, với 4 byte đệm sau mỗi thành phần không phải là cuối cùng. Hình ảnh script (`boot.scr`) mang cùng một bảng, do đó văn bản script của chúng là `image-0.bin`. Dải nguồn vật lý của thành phần và mã băm nội dung giữ lại nguồn gốc chính xác. Trích xuất ghi lại toàn bộ tải trọng và mọi thành phần, do đó đầu ra đa tệp có thể gần gấp đôi kích thước đầu vào. Tải trọng bị nén vẫn được giữ nguyên trạng thái nén.
 
-The fixed 32-byte name field is retained as `name_bytes_hex`. `name` contains
-the UTF-8 bytes before the first NUL, or null when those bytes cannot be decoded
-exactly. For example, a producer can truncate a multibyte character at the
-32-byte boundary; replacement characters do not establish a source name.
+Trường tên cố định 32 byte được giữ lại dưới dạng `name_bytes_hex`. `name` chứa các byte UTF-8 trước ký tự NUL đầu tiên, hoặc null khi các byte đó không thể giải mã chính xác. Ví dụ: trình tạo có thể cắt ngắn một ký tự đa byte tại ranh giới 32 byte; các ký tự thay thế không xác lập tên nguồn hợp lệ.
 
-## Bounded work and retained facts
+## Ranh giới tài nguyên và dữ kiện được lưu giữ
 
-The reader admits at most 4,096 components, a resource policy rather than a
-format maximum. It reads at most 16,388 bytes for the size table and refuses an
-excess count as a capacity limit before its remaining payload CRC scan.
-Shared artifact identity hashing has separate cost. The
-same prefix participates in the native incremental CRC32 calculation; no
-custom bytewise CRC table or full-payload buffer is retained. Remaining CRC
-reads and member streams use 64 KiB chunks. Parsed facts are cached for one reader. Carrier state is checked during
-directory preparation, at member open and after stream completion; metadata
-getters return the retained facts. Close joins active member
-pipelines and final validation before releasing the descriptor; failed cleanup
-remains owned for retry.
+Trình đọc chấp nhận tối đa 4.096 thành phần, đây là chính sách tài nguyên chứ không phải giới hạn tối đa của định dạng. Nó đọc tối đa 16.388 byte cho bảng kích thước và từ chối số lượng vượt quá dưới dạng giới hạn dung lượng trước khi quét CRC tải trọng còn lại. Băm danh tính artifact dùng chung có chi phí riêng. Cùng tiền tố đó tham gia vào tính toán CRC32 tăng dần native; không có bảng CRC theo byte tùy chỉnh hay bộ đệm toàn bộ tải trọng nào được giữ lại. Các lần đọc CRC và luồng thành viên còn lại sử dụng các đoạn 64 KiB. Các dữ kiện đã phân tích được lưu cache cho một trình đọc. Trạng thái vật mang (carrier) được kiểm tra trong quá trình chuẩn bị thư mục, khi mở thành viên và sau khi hoàn thành luồng; các hàm lấy metadata trả về các dữ kiện đã lưu giữ. Thao tác đóng kết hợp các pipeline thành viên đang hoạt động và xác thực cuối cùng trước khi giải phóng bộ mô tả; dọn dẹp thất bại vẫn được giữ lại để thử lại.
 
-Prefer a retained summary when only a few facts are needed:
+Ưu tiên bản tóm tắt khi chỉ cần một vài dữ kiện:
 
 ```sh
-rea inspect-artifact firmware.bin --detail summary \
-  --evidence_output firmware.evidence.json --json
+rea inspect-artifact firmware.bin --detail summary   --evidence_output firmware.evidence.json --json
 rea extract-artifact firmware.bin --json
 ```
 
-With MCP, `inspect_artifact` with `detail: "summary"` retains the complete
-Evidence. Use `inspect_analysis_view` and its `parent_evidence_id` for exact
-logical paths, batches of occurrence/content IDs, selected fields and pages.
-Coverage and limitations remain attached. Retained views are historical
-observations tied to the saved Evidence. Complete Evidence remains available;
-these views do not narrow the examined inventory.
+Với MCP, `inspect_artifact` với `detail: "summary"` giữ lại Bằng chứng (Evidence) hoàn chỉnh. Sử dụng `inspect_analysis_view` và `parent_evidence_id` của nó cho các đường dẫn logic chính xác, các lô ID xuất hiện/nội dung, các trường và trang đã chọn. Độ bao phủ và các giới hạn vẫn được đính kèm. Các khung nhìn (views) được lưu giữ là các quan sát lịch sử gắn với Bằng chứng đã lưu. Bằng chứng hoàn chỉnh vẫn có sẵn; các khung nhìn này không thu hẹp kho kiểm kê đã kiểm tra.
 
-## Verification scope
+## Phạm vi xác minh
 
-The public OpenWrt 24.10.0 GL-AR150 initramfs kernel is checked against its
-[published digest](https://downloads.openwrt.org/releases/24.10.0/targets/ath79/generic/sha256sums):
+Kernel initramfs GL-AR150 của OpenWrt 24.10.0 công khai được kiểm tra đối chiếu với [mã băm đã công bố](https://downloads.openwrt.org/releases/24.10.0/targets/ath79/generic/sha256sums):
 `027c60a7061462d8145b11efa23ab02b334acb9a23a215f9095860b632ace4ff`.
-Independent `mkimage`/`dumpimage` 2023.01 provide producer and extraction
-oracles. Generated containers use real host ELF files, system metadata and
-stored gzip bytes; their declared ARM64, VxWorks or RISC-V labels do not prove
-boot/runtime compatibility. U-Boot's identifier and alignment definitions are
-pinned to commit `ece349ade2973e220f524ce59e59711cc919263f`.
+Các công cụ độc lập `mkimage`/`dumpimage` 2023.01 cung cấp oracle tạo và trích xuất. Container được tạo sử dụng các tệp ELF máy chủ thật, metadata hệ thống và byte gzip được lưu trữ; các nhãn ARM64, VxWorks hoặc RISC-V được khai báo của chúng không chứng minh khả năng tương thích khi khởi động/runtime. Định nghĩa nhận diện và căn chỉnh của U-Boot được ghim theo commit `ece349ade2973e220f524ce59e59711cc919263f`.
 
-Source and compiled CLI/full/compact MCP tests cover aligned component ranges,
-unknown identifiers/text, malformed/truncated inputs, CRC failures, capacity,
-source changes, cancellation, pending reads, final validation and cleanup
-retry. Real producer results, complete-task cost measurements and limitations
-are reported in the PR. No target runtime or decompressor behavior is verified.
+Các bài kiểm tra CLI/full/compact MCP từ mã nguồn và bản biên dịch bao gồm các dải thành phần đã căn chỉnh, mã nhận dạng/văn bản không xác định, đầu vào lỗi/bị cắt cụt, lỗi CRC, dung lượng, thay đổi nguồn, hủy bỏ, các lần đọc đang chờ xử lý, xác thực cuối cùng và thử lại việc dọn dẹp. Kết quả từ trình tạo thực tế, phép đo chi phí toàn bộ tác vụ và các giới hạn được báo cáo trong PR. Không có hành vi giải nén hay runtime mục tiêu nào được xác minh.

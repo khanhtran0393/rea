@@ -1,27 +1,16 @@
-# Captured website module relationships
+# Mối quan hệ module website được thu thập (Captured Website Module Relationships)
 
-`trace_web_module_imports` / `rea trace-web-module-imports` traces one script's
-outgoing native ES imports and re-exports from an
-[exported capture](website-script-export.md). It verifies the selected source's
-SHA-256 and byte count, preserves browser URL identities, and returns every
-matching capture candidate inline. It does not refetch website assets.
+`trace_web_module_imports` / `rea trace-web-module-imports` truy vết các lệnh import và re-export native ES gửi đi của một script từ một [bản thu thập đã xuất](website-script-export.md). Lệnh này xác minh SHA-256 và số lượng byte của nguồn đã chọn, bảo toàn danh tính URL trình duyệt, và trả về nội dòng mọi ứng viên thu thập khớp. Nó không tải lại các tài nguyên website.
 
-## Select the source and context
+## Chọn nguồn và ngữ cảnh
 
-Provide a caller-supplied Chromium executable supporting `import.meta.resolve`.
-REA does not install or upgrade a browser. Real verification covers Linux x64;
-other hosts have not received this feature's real workflow verification.
+Cung cấp tệp thực thi Chromium do bên gọi cung cấp có hỗ trợ `import.meta.resolve`. REA không cài đặt hay nâng cấp trình duyệt. Việc xác minh thực tế bao gồm Linux x64; các máy chủ khác chưa nhận được xác minh quy trình làm việc thực tế của tính năng này.
 
 ```bash
-REA_BROWSER_EXECUTABLE=/absolute/path/to/chrome \
-  rea trace-web-module-imports /analysis/export/manifest.json 0 \
-  --importer-url 'https://example.test/app/main.js?build=2#entry' \
-  --import-map-path /analysis/import-map.json \
-  --import-map-base-url https://example.test/maps/ \
-  --json
+REA_BROWSER_EXECUTABLE=/absolute/path/to/chrome   rea trace-web-module-imports /analysis/export/manifest.json 0   --importer-url 'https://example.test/app/main.js?build=2#entry'   --import-map-path /analysis/import-map.json   --import-map-base-url https://example.test/maps/   --json
 ```
 
-The MCP input expresses the same choices:
+Đầu vào MCP thể hiện các lựa chọn tương tự:
 
 ```json
 {
@@ -35,64 +24,25 @@ The MCP input expresses the same choices:
 }
 ```
 
-`script_index` is zero-based in `manifest.scripts`. If `importer_url` is omitted,
-the trace selects the reported source URL. An inline script's document base
-cannot be established from that URL alone; choose the context explicitly when
-known. `import_map` is optional and reads local JSON only. Its exact bytes and
-base URL are retained; selecting it does not prove the map was installed in the
-captured page. HTTP(S) importer contexts without URL userinfo are supported initially.
-An unusable reported URL leaves the importer context unavailable; supply
-`importer_url` explicitly when its value is known. An explicitly supplied malformed
-URL is reported against that input field. URLs using unsupported schemes remain
-capability limitations.
+`script_index` được tính từ số 0 trong `manifest.scripts`. Nếu bỏ qua `importer_url`, dấu vết sẽ chọn URL nguồn được báo cáo. Không thể thiết lập base tài liệu của script nội dòng chỉ từ URL đó; hãy chọn ngữ cảnh rõ ràng khi biết trước. `import_map` là tùy chọn và chỉ đọc JSON cục bộ. Các byte chính xác và URL cơ sở của nó được giữ lại; việc chọn nó không chứng minh map đã được cài đặt trong trang được thu thập. Các ngữ cảnh importer HTTP(S) không có thông tin người dùng URL được hỗ trợ ban đầu. URL được báo cáo không thể sử dụng sẽ khiến ngữ cảnh importer không khả dụng; hãy cung cấp `importer_url` rõ ràng khi biết giá trị của nó. URL sai định dạng được cung cấp rõ ràng sẽ được báo cáo theo trường đầu vào đó. Các URL sử dụng các scheme không được hỗ trợ vẫn là các giới hạn năng lực.
 
-## Interpret the evidence
+## Diễn giải bằng chứng (Evidence)
 
-- Static imports, re-exports and literal dynamic imports receive the native
-  engine's resolved URL or exact rejection message. Empty strings are retained.
-- Computed dynamic imports retain their expression and source positions with
-  `computed-specifier` unknown resolution. Erased type-only imports/exports and
-  inferred bundler IDs are excluded from native import claims.
-- Locations use UTF-16 offsets and columns, with one-based lines. Parse recovery
-  diagnostics and unparseable input are explicit.
-- Query variants and fragments remain distinct. An exact reported URL is an
-  `exact-reported-url` candidate. A response URL stripped of its fragment is a
-  weaker `response-url-without-fragment` content candidate. Multiple captured
-  versions are all returned; the trace selects none as canonical.
-- Candidate metadata remains reported capture evidence; only the selected
-  source's bytes are reverified. Missing/lazy targets can resolve successfully
-  with no captured candidate. Every relationship reports execution as unknown.
-- Source-map declarations remain declarations; this operation does not read or
-  invent map bytes, original-source mappings, worker ownership or UI causality.
+- Các lệnh import tĩnh, re-export và import động theo chuỗi ký tự (literal dynamic imports) nhận URL đã giải quyết của engine native hoặc thông báo từ chối chính xác. Chuỗi rỗng được giữ lại.
+- Các import động dạng tính toán (computed dynamic imports) giữ lại biểu thức và vị trí nguồn của chúng với độ phân giải unknown dạng `computed-specifier`. Các import/export chỉ dành cho kiểu dữ liệu đã bị xóa (erased type-only) và ID bundler được suy diễn bị loại trừ khỏi các xác nhận import native.
+- Vị trí sử dụng độ lệch và cột UTF-16, với dòng tính từ 1. Chẩn đoán khôi phục phân tích cú pháp và đầu vào không thể phân tích được hiển thị rõ ràng.
+- Các biến thể truy vấn (query) và đoạn (fragment) vẫn tách biệt. URL được báo cáo chính xác là một ứng viên `exact-reported-url`. URL phản hồi bị loại bỏ đoạn là một ứng viên nội dung `response-url-without-fragment` yếu hơn. Nhiều phiên bản được thu thập đều được trả về; quá trình trace không chọn phiên bản nào làm chuẩn (canonical).
+- Metadata ứng viên vẫn là bằng chứng thu thập được báo cáo; chỉ có các byte của nguồn đã chọn mới được xác minh lại. Các mục tiêu bị thiếu/tải lười (lazy) có thể giải quyết thành công mà không có ứng viên nào được thu thập. Mọi mối quan hệ đều báo cáo việc thực thi là unknown.
+- Các khai báo source-map vẫn là khai báo; thao tác này không đọc hay tạo byte map, ánh xạ nguồn gốc, quyền sở hữu worker hay tính nhân quả UI.
 
-The selected source is loaded from `files/` under the manifest's current
-directory. Relocation retains the manifest's originally reported paths and the
-actual current source path separately. Unsafe paths, symlink source directories,
-nonregular files, wrong digests/sizes and malformed UTF-8 fail explicitly.
-Malformed source bytes or unsafe source paths declared by the manifest are
-artifact failures. Malformed caller-selected manifest or import-map files identify
-the supplied input field.
+Nguồn đã chọn được nạp từ `files/` dưới thư mục hiện tại của manifest. Việc di chuyển vị trí lưu giữ riêng các đường dẫn được báo cáo ban đầu của manifest và đường dẫn nguồn hiện tại thực tế. Đường dẫn không an toàn, thư mục nguồn symlink, tệp không thông thường, mã băm/kích thước sai và UTF-8 lỗi sẽ thất bại rõ ràng. Byte nguồn bị lỗi hoặc đường dẫn nguồn không an toàn do manifest khai báo là các lỗi artifact. Tệp manifest hoặc import-map do bên gọi chọn bị lỗi sẽ xác định trường đầu vào được cung cấp.
 
-## Engine and lifecycle
+## Engine và vòng đời
 
-An owned temporary browser context runs REA's trusted resolver stub. The selected
-application is parsed as data and is never executed by this trace. Page requests
-are fulfilled with REA's synthetic document/stub or blocked; no website asset is
-downloaded. This does not establish an OS sandbox or browser-wide network
-containment. The engine version and native report are retained in Evidence.
+Một ngữ cảnh trình duyệt tạm thời được sở hữu chạy stub giải quyết đáng tin cậy của REA. Ứng dụng đã chọn được phân tích cú pháp dưới dạng dữ liệu và không bao giờ được thực thi bởi trace này. Các yêu cầu trang được đáp ứng bằng tài liệu/stub tổng hợp của REA hoặc bị chặn; không có tài nguyên website nào được tải xuống. Điều này không thiết lập hộp cát (sandbox) hệ điều hành hay ngăn chặn mạng trên toàn trình duyệt. Phiên bản engine và báo cáo native được giữ lại trong Bằng chứng.
 
-Sources without literal imports do not acquire a browser. The manifest, source
-and import map have 32 MiB, 16 MiB and 4 MiB input limits. Native resolution has
-one 20-second deadline; cleanup may extend that deadline. One renderer is
-requested, and there is no aggregate host memory-limit claim. Cancellation
-closes only the owned browser; cleanup failure cannot return a successful trace.
-`REA_BROWSER_NO_SANDBOX=true` passes Chromium's corresponding launch option when
-the host requires it; it does not enable an REA security boundary.
+Các nguồn không có import ký tự không yêu cầu trình duyệt. Manifest, nguồn và import map có các giới hạn đầu vào lần lượt là 32 MiB, 16 MiB và 4 MiB. Độ phân giải native có hạn chót 20 giây; việc dọn dẹp có thể kéo dài hạn chót đó. Một renderer được yêu cầu và không có tuyên bố giới hạn bộ nhớ máy chủ tổng hợp. Thao tác hủy chỉ đóng trình duyệt được sở hữu; dọn dẹp thất bại không thể trả về một trace thành công. `REA_BROWSER_NO_SANDBOX=true` truyền tùy chọn khởi chạy tương ứng của Chromium khi máy chủ yêu cầu; nó không kích hoạt ranh giới bảo mật của REA.
 
-See [testing](testing.md) for the native loading oracle and CLI/MCP real lane.
+Xem [kiểm thử](testing.md) để biết oracle nạp native và luồng thực tế CLI/MCP.
 
-The selected local source filename supplies the parser grammar. JavaScript files
-retain native dynamic imports even in relational expressions; TypeScript files
-use the shared TypeScript grammar and omit erased import-type expressions from
-runtime module tracing. Historical-source import retains those type dependencies
-separately. Parser observations and native URL resolution do not prove execution.
+Tên tệp nguồn cục bộ đã chọn cung cấp ngữ pháp phân tích cú pháp. Tệp JavaScript giữ lại các import động native ngay cả trong các biểu thức quan hệ; tệp TypeScript sử dụng ngữ pháp TypeScript dùng chung và bỏ qua các biểu thức import-type bị xóa khỏi việc trace module runtime. Việc import nguồn lịch sử giữ lại các phụ thuộc kiểu đó một cách riêng biệt. Các quan sát của trình phân tích cú pháp và việc giải quyết URL native không chứng minh việc thực thi.

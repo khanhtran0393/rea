@@ -1,105 +1,43 @@
-# PSP static ELF analysis through Ghidra
+# Phân tích tĩnh PSP ELF qua Ghidra
 
-This specialization builds on [generic MIPS support](ghidra-mips.md) for
-[#1330](https://github.com/morluto/rea/issues/1330). It reuses REA's existing
-CLI/MCP, Ghidra bridge, Evidence and snapshot workflows. Allegrex instructions,
-PSP loading and calling conventions remain owned by
-[ghidra-allegrex](https://github.com/kotcrab/ghidra-allegrex).
+Chuyên môn hóa này được xây dựng dựa trên [hỗ trợ MIPS thông thường](ghidra-mips.md) cho [#1330](https://github.com/morluto/rea/issues/1330). Nó tái sử dụng các quy trình làm việc CLI/MCP, cầu nối Ghidra, Bằng chứng và snapshot hiện có của REA. Các lệnh Allegrex, quy ước nạp và gọi hàm của PSP vẫn thuộc quyền sở hữu của [ghidra-allegrex](https://github.com/kotcrab/ghidra-allegrex).
 
-## Initial boundary
+## Ranh giới ban đầu
 
-The initial profile is limited to Linux x64, little-endian ELF32 `ET_EXEC`,
-`EM_MIPS` and the PSPSDK declaration `e_flags=0x10a23001`. Those bits declare
-MIPS II, Allegrex, EABI32 and NOREORDER; they are not proof of every instruction's
-semantics. The profile also requires an inspected version-0 MIPS ABI flags
-record declaring ISA level 2/revision 0, 32-bit GPR and CPR1, no CPR2,
-single-precision hard float (`fpAbi=2`), no ISA extension or ASEs,
-`flags1=1` and `flags2=0`. These are the declarations independently reported by
-PSPDEV v20261001's GNU readelf 2.44 and its 24-byte section dump. Missing,
-uninspected, contradictory and other producer declarations are refused.
-The PSP profile is not an exception to the generic MIPS32r2/o32 policy; that
-separate gate is unchanged. Profile revision v2 records this corrected boundary.
+Profile ban đầu bị giới hạn ở Linux x64, little-endian ELF32 `ET_EXEC`, `EM_MIPS` và khai báo PSPSDK `e_flags=0x10a23001`. Các bit đó khai báo MIPS II, Allegrex, EABI32 và NOREORDER; chúng không phải là bằng chứng về ngữ nghĩa của mọi lệnh. Profile cũng yêu cầu một bản ghi cờ MIPS ABI phiên bản 0 đã được kiểm tra khai báo ISA level 2/revision 0, 32-bit GPR và CPR1, không có CPR2, dấu phẩy động phần cứng độ chính xác đơn (`fpAbi=2`), không có phần mở rộng ISA hoặc ASE, `flags1=1` và `flags2=0`. Đây là các khai báo được báo cáo độc lập bởi GNU readelf 2.44 của PSPDEV v20261001 và bản dump section 24 byte của nó. Các khai báo bị thiếu, chưa được kiểm tra, mâu thuẫn và các khai báo khác của trình tạo đều bị từ chối. Profile PSP không phải là ngoại lệ đối với chính sách MIPS32r2/o32 thông thường; cổng kiểm soát riêng đó không thay đổi. Bản sửa đổi profile v2 ghi lại ranh giới đã sửa đổi này.
 
-PRX, relocatable/shared images, PBP/ISO/CSO containers, runtime emulation and live
-code overlays are outside this first profile. Other hosts and flag combinations
-are not silently admitted. File names do not identify a PSP target.
+PRX, hình ảnh có thể tái định vị/dùng chung, container PBP/ISO/CSO, giả lập runtime và lớp phủ mã trực tiếp nằm ngoài profile đầu tiên này. Các máy chủ và tổ hợp cờ khác không được tiếp nhận âm thầm. Tên tệp không xác định mục tiêu PSP.
 
-## Bring your own compatible extension
+## Tự cung cấp tiện ích mở rộng tương thích (BYO Extension)
 
-Install the extension in the selected Ghidra distribution at
-`$GHIDRA_INSTALL_DIR/Ghidra/Extensions/ghidra-allegrex`, with its
-`Module.manifest`, `extension.properties`, language files and loader JARs.
-User-home installations are not searched because REA uses an isolated analysis
-home. REA never downloads, installs, rebuilds or vendors the extension.
+Cài đặt tiện ích mở rộng trong bản phân phối Ghidra đã chọn tại `$GHIDRA_INSTALL_DIR/Ghidra/Extensions/ghidra-allegrex`, với `Module.manifest`, `extension.properties`, các tệp ngôn ngữ và các JAR trình nạp của nó. Bản cài đặt trong thư mục người dùng (user-home) không được tìm kiếm vì REA sử dụng thư mục phân tích cô lập. REA không bao giờ tải xuống, cài đặt, xây dựng lại hoặc đóng gói sẵn tiện ích mở rộng.
 
-The published compatibility experiment used Ghidra **12.1.3**, extension
-**v21.4**, PSPDEV **v20261001** and JDK 21. New public-provider results must be
-reported separately from that historical bridge experiment. The extension's
-`version` property declares its compatible **Ghidra version**, not its release
-tag; the property must match the selected installation. Other same-version
-builds are not described as independently verified merely because they pass
-this metadata check. A malformed or unloadable extension still fails real import.
+Thử nghiệm khả năng tương thích đã công bố sử dụng Ghidra **12.1.3**, tiện ích mở rộng **v21.4**, PSPDEV **v20261001** và JDK 21. Kết quả provider công khai mới phải được báo cáo tách biệt khỏi thử nghiệm cầu nối lịch sử đó. Thuộc tính `version` của tiện ích mở rộng khai báo **phiên bản Ghidra** tương thích của nó, không phải thẻ phát hành; thuộc tính này phải khớp với bản cài đặt đã chọn. Các bản dựng cùng phiên bản khác không được coi là đã xác minh độc lập chỉ vì chúng vượt qua kiểm tra metadata này. Một tiện ích mở rộng bị lỗi hoặc không thể nạp vẫn sẽ làm thất bại việc nạp thực tế.
 
-REA fingerprints installed extension files before resolving the analysis
-profile and checks that identity again immediately before launch. Symlinks,
-nonregular files, missing components and incompatible metadata are refused.
-Inspection is bounded to 1,024 entries, 16 directory levels and 64 MiB, with
-streamed file hashing and 64 KiB properties. Rebuilds or content changes yield a
-different profile; an old snapshot is not silently reused with the new profile.
-This is content identity, not a signature or a sandbox for installed code.
-Do not modify the Ghidra installation while a session is running.
+REA lấy dấu vân tay các tệp tiện ích mở rộng đã cài đặt trước khi giải quyết profile phân tích và kiểm tra lại danh tính đó ngay trước khi khởi chạy. Các liên kết mềm, tệp không thông thường, các thành phần bị thiếu và metadata không tương thích đều bị từ chối. Việc kiểm tra được giới hạn ở 1.024 mục, 16 cấp thư mục và 64 MiB, với việc băm tệp dạng luồng và thuộc tính 64 KiB. Việc xây dựng lại hoặc thay đổi nội dung sẽ tạo ra một profile khác; một snapshot cũ không được âm thầm tái sử dụng với profile mới. Đây là định danh nội dung, không phải chữ ký hay hộp cát cho mã đã cài đặt. Không sửa đổi bản cài đặt Ghidra khi một phiên đang chạy.
 
-## Ordinary public interfaces
+## Giao diện công khai thông thường
 
 ```bash
 rea analyze /absolute/path/to/psp.elf --provider ghidra --json
 rea function /absolute/path/to/psp.elf function_name --provider ghidra --json
 ```
 
-MCP uses `open_binary` with an absolute path and `provider_id: "ghidra"`, then
-ordinary inventory and function operations. The loader is explicitly
-`PspElfLoader`, language `Allegrex:LE:32:default`, compiler `default`. The
-handshake must confirm the language and compiler before serving observations.
-Missing prerequisites return `PSP_EXTENSION_UNAVAILABLE` with an installation
-remedy; no provider fallback or automatic installation occurs.
+MCP sử dụng `open_binary` với đường dẫn tuyệt đối và `provider_id: "ghidra"`, sau đó thực hiện các thao tác kiểm kê và hàm thông thường. Bộ nạp rõ ràng là `PspElfLoader`, ngôn ngữ `Allegrex:LE:32:default`, trình biên dịch `default`. Bắt tay phải xác nhận ngôn ngữ và trình biên dịch trước khi cung cấp các quan sát. Các điều kiện tiên quyết bị thiếu sẽ trả về `PSP_EXTENSION_UNAVAILABLE` kèm theo biện pháp cài đặt; không có chuyển đổi dự phòng provider hoặc cài đặt tự động nào diễn ra.
 
-Evidence retains the `mips` architecture family and its PSP-specific profile,
-including extension content identity. It also carries the VFPU and static-only
-limitations. The extension does not model VFPU prefix effects completely;
-nonempty decompiled code is not proof of correct vector behavior. Existing
-session-local metadata editing does not change executable bytes or turn a
-snapshot into a persistent Ghidra project.
+Bằng chứng giữ lại họ kiến trúc `mips` và profile dành riêng cho PSP của nó, bao gồm danh tính nội dung tiện ích mở rộng. Nó cũng mang các giới hạn về VFPU và chỉ phân tích tĩnh. Tiện ích mở rộng không mô hình hóa hoàn toàn các hiệu ứng tiền tố VFPU; mã được dịch ngược không rỗng không phải là bằng chứng về hành vi vector chính xác. Việc chỉnh sửa metadata cục bộ trong phiên hiện có không làm thay đổi các byte thực thi hoặc biến một snapshot thành một dự án Ghidra lâu dài.
 
-## Verification
+## Xác minh
 
-Use the existing real MIPS verifier with its PSP option. Required tools are
-caller-supplied `make`, `psp-config`, `psp-gcc`, `psp-readelf`, `psp-objdump`,
-`PSPDEV`, `GHIDRA_INSTALL_DIR` and a compatible `JAVA_HOME`.
+Sử dụng bộ xác minh MIPS thực tế hiện có với tùy chọn PSP của nó. Các công cụ bắt buộc do bên gọi cung cấp là `make`, `psp-config`, `psp-gcc`, `psp-readelf`, `psp-objdump`, `PSPDEV`, `GHIDRA_INSTALL_DIR` và một `JAVA_HOME` tương thích.
 
 ```bash
 npm run build:cached
 node scripts/verify-real-ghidra-mips.mjs --psp
-# In a disposable installation without Allegrex, test actual public refusals:
+# Trong bản cài đặt dùng một lần không có Allegrex, kiểm tra các từ chối công khai thực tế:
 node scripts/verify-real-ghidra-mips.mjs --psp-missing-extension
-# Generic MIPS must remain generic with Allegrex installed:
+# MIPS thông thường phải duy trì tính chung khi Allegrex được cài đặt:
 npm run verify:ghidra:mips
 ```
 
-The generic verifier also checks that a section-truncated firmware copy is
-refused when the target is opened. That check runs only in generic mode; the
-PSP report explicitly records carved-PSP coverage as not run.
-
-The maintained PSP fixture builds from `tests/conformance/psp/`, never executes,
-and is independent of commercial game data. PSP GNU tools supply ELF/ABI,
-raw ABI-record, symbol and encoding observations; REA's parsed target and saved
-snapshot must agree with the independent ABI declaration. Public CLI/MCP must
-recover known functions, a direct
-call, the immediate `0x1234`, BITREV, a global word and a marker. The verifier
-checks observed loader/language, original bytes, Evidence, snapshot reopening,
-and an A-B-A target switch with different global contents at the same address.
-A snapshot for A must not open B. Cleanup must finish before success is reported.
-
-These checks are selected static facts, not full behavioral equivalence, VFPU
-semantics or arbitrary PSP compatibility. Independently published PSP binaries
-are supplemental calibration targets after payload classification and license
-review; unsupported PRX/PBP must not count as a successful static-ELF case.
+Bộ xác minh thông thường cũng kiểm tra xem một bản sao firmware bị cắt ngắn phần có bị từ chối khi mục tiêu được mở hay không. Kiểm tra đó chỉ chạy ở chế độ chung; báo cáo PSP ghi lại rõ ràng phạm vi carved-PSP là chưa chạy.

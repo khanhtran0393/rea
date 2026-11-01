@@ -1,91 +1,42 @@
-# PowerPC ELF analysis through Ghidra
+# Phân tích PowerPC ELF qua Ghidra
 
-This lane extends native ELF analysis to 32-bit big-endian PowerPC; it does
-not execute PowerPC code. It is the first milestone of
-[#1741](https://github.com/morluto/rea/issues/1741). GameCube/Wii DOL
-executables are covered by [GameCube DOL analysis](ghidra-dol.md). PPC64 and other
-PowerPC variants remain separate follow-ups.
+Luồng này mở rộng phân tích ELF native sang PowerPC 32-bit big-endian; nó không thực thi mã PowerPC. Đây là cột mốc đầu tiên của [#1741](https://github.com/morluto/rea/issues/1741). Các tệp thực thi GameCube/Wii DOL được đề cập trong [Phân tích GameCube DOL](ghidra-dol.md). PPC64 và các biến thể PowerPC khác vẫn là các phần phát triển tiếp theo.
 
-## Admission boundary
+## Ranh giới tiếp nhận (Admission Boundary)
 
-ELF `EM_PPC` (20) is retained as the provider-neutral `powerpc` family. The
-target also retains class, byte order, `e_type` and raw `e_flags`. Recognition
-does not mean every provider or PowerPC variant is supported. `EM_PPC64` (21)
-is not recognized as this family.
+ELF `EM_PPC` (20) được giữ lại dưới dạng họ `powerpc` trung lập với provider. Mục tiêu cũng giữ lại class, thứ tự byte, `e_type` và `e_flags` thô. Việc nhận diện không có nghĩa là mọi provider hay biến thể PowerPC đều được hỗ trợ. `EM_PPC64` (21) không được nhận diện là họ này.
 
-The Ghidra lane admits ELF32 `ET_EXEC`, big endian. ELF64, little-endian,
-relocatable and shared objects are refused with a specific unsupported
-constraint. `EF_PPC_EMB` declares an embedded variant and is refused; the
-remaining `e_flags` bits only declare relocation conventions and do not change
-instruction decoding.
+Luồng Ghidra chỉ tiếp nhận ELF32 `ET_EXEC`, big endian. ELF64, little-endian, các đối tượng có thể tái định vị (relocatable) và dùng chung (shared objects) bị từ chối với ràng buộc không hỗ trợ cụ thể. `EF_PPC_EMB` khai báo biến thể nhúng và bị từ chối; các bit `e_flags` còn lại chỉ khai báo quy ước tái định vị và không làm thay đổi việc giải mã lệnh.
 
-## Bound language
+## Ngôn ngữ liên kết (Bound Language)
 
-Ghidra's ELF loader selects `PowerPC:BE:32:e500:default` for a plain `EM_PPC`
-header with `e_flags` 0. e500 is the embedded Book-E variant whose SPE unit
-replaces the classic floating-point unit, so it misinterprets ordinary
-750-family code. Nothing in the header distinguishes the two.
+Trình nạp ELF của Ghidra chọn `PowerPC:BE:32:e500:default` cho tiêu đề `EM_PPC` thông thường với `e_flags` bằng 0. e500 là biến thể Book-E nhúng có đơn vị SPE thay thế đơn vị dấu phẩy động cổ điển, do đó nó diễn giải sai mã của họ 750 thông thường. Không có gì trong tiêu đề phân biệt hai biến thể này.
 
-The lane therefore imports with `PowerPC:BE:32:default` and compiler spec
-`default`, commits that choice in the analysis profile as
-`language_selection: "provider-pinned-v1"`, and checks the language Ghidra
-reports after import. A different language set through
-`REA_GHIDRA_LANGUAGE_ID` (and optionally `REA_GHIDRA_COMPILER_SPEC_ID`)
-replaces the lane default and is admitted against the installed language
-catalog as usual; for example `PowerPC:BE:32:e500` for genuine e500 code.
+Do đó, luồng này nạp với `PowerPC:BE:32:default` và thông số trình biên dịch `default`, cam kết lựa chọn đó trong phân tích cấu hình là `language_selection: "provider-pinned-v1"`, và kiểm tra ngôn ngữ mà Ghidra báo cáo sau khi nạp. Một ngôn ngữ khác được thiết lập qua `REA_GHIDRA_LANGUAGE_ID` (và tùy chọn `REA_GHIDRA_COMPILER_SPEC_ID`) sẽ thay thế mặc định của luồng và được tiếp nhận dựa trên danh mục ngôn ngữ đã cài đặt như thường lệ; ví dụ `PowerPC:BE:32:e500` cho mã e500 thực tế.
 
-PowerPC header facts are committed in the analysis profile so interpretation
-changes invalidate profile-bound snapshots. The support-lane identity is
-versioned independently of file identity. Evidence, lifecycle outputs and saved
-snapshots preserve the `powerpc` family. Hopper and IDA adapters do not
-implicitly gain PowerPC support. Windows Ghidra P0 remains PE x86/x86-64 only.
+Các dữ kiện tiêu đề PowerPC được cam kết trong profile phân tích để các thay đổi về diễn giải sẽ làm vô hiệu hóa các snapshot gắn với profile. Danh tính luồng hỗ trợ được đánh phiên bản độc lập với danh tính tệp. Bằng chứng, kết quả vòng đời và snapshot đã lưu bảo toàn họ `powerpc`. Các adapter Hopper và IDA không mặc nhiên có được hỗ trợ PowerPC. Ghidra P0 trên Windows vẫn chỉ dành cho PE x86/x86-64.
 
-## Use
+## Sử dụng
 
-With a caller-installed Ghidra and compatible JDK on a supported Linux/macOS host:
+Với Ghidra do người dùng cài đặt và JDK tương thích trên máy chủ Linux/macOS được hỗ trợ:
 
 ```bash
 rea analyze /absolute/path/to/ppc.elf --provider ghidra --json
 rea function /absolute/path/to/ppc.elf function_name --provider ghidra --json
 ```
 
-MCP uses the existing tools, including `open_binary` with an absolute path and
-`provider_id: "ghidra"`. No PowerPC-specific tool catalog or emulator is
-introduced.
+MCP sử dụng các công cụ hiện có, bao gồm `open_binary` với đường dẫn tuyệt đối và `provider_id: "ghidra"`. Không có danh mục công cụ hay trình giả lập riêng cho PowerPC nào được thêm vào.
 
-## Verification
+## Xác minh
 
-The source-owned freestanding fixture is `tests/conformance/c/ppc.c`. The
-optional cross-target lane requires a caller-supplied Clang with the PowerPC
-target, LLD, GNU `readelf`, Ghidra and its compatible JDK; ordinary host-native
-checks do not acquire these tools. `REA_PPC_CLANG` selects Clang and
-`REA_PPC_READELF` selects GNU readelf (for example
-`/opt/homebrew/opt/binutils/bin/readelf` on macOS). These are test-time
-prerequisites, not REA runtime providers.
+Fixture độc lập thuộc quyền sở hữu mã nguồn là `tests/conformance/c/ppc.c`. Luồng đa mục tiêu tùy chọn yêu cầu Clang do người dùng cung cấp có target PowerPC, LLD, GNU `readelf`, Ghidra và JDK tương thích; các kiểm tra máy chủ native thông thường không tự động tải các công cụ này. `REA_PPC_CLANG` chọn Clang và `REA_PPC_READELF` chọn GNU readelf (ví dụ `/opt/homebrew/opt/binutils/bin/readelf` trên macOS). Đây là các điều kiện tiên quyết lúc kiểm thử, không phải runtime provider của REA.
 
 ```bash
 GHIDRA_INSTALL_DIR=/absolute/path/to/ghidra npm run verify:ghidra:ppc
 ```
 
-The lane compiles the fixture for a 750-family core (`-mcpu=750`) and never
-executes it. GNU readelf independently supplies header facts and symbol
-addresses, compared with the production REA target resolver before provider
-startup. Its version, bounded command output and selected tool path are
-retained in the verification report. The parser deliberately recognizes only
-this fixture's GNU output, rejecting missing, ambiguous or unexpected fields
-rather than substituting defaults.
+Luồng này biên dịch fixture cho lõi họ 750 (`-mcpu=750`) và không bao giờ thực thi nó. GNU readelf độc lập cung cấp các dữ kiện tiêu đề và địa chỉ biểu tượng, được so sánh với bộ giải quyết mục tiêu REA sản xuất trước khi khởi động provider. Phiên bản, đầu ra lệnh có giới hạn và đường dẫn công cụ đã chọn được lưu lại trong báo cáo xác minh. Trình phân tích cú pháp cố ý chỉ nhận diện đầu ra GNU của fixture này, từ chối các trường bị thiếu, không rõ ràng hoặc không mong đợi thay vì thay thế bằng giá trị mặc định.
 
-Existing public MCP operations check Ghidra's **observed** language and
-compiler specification and loaded-file hashes; an e500 import fails the lane.
-The source-owned `ppc-probe.S` supplies fixed `addi` and conditional-branch
-encodings: verification checks bytes, length, immediate and direct destination,
-independent of decompiler variable names. Global and string bytes are checked at
-independently reported symbol addresses.
+Các thao tác MCP công khai hiện có kiểm tra ngôn ngữ và thông số trình biên dịch **quan sát được** của Ghidra cùng các mã băm tệp đã nạp; việc nạp e500 sẽ làm luồng thất bại. Tệp `ppc-probe.S` thuộc mã nguồn cung cấp mã hóa `addi` cố định và phân nhánh có điều kiện: quá trình xác minh kiểm tra byte, độ dài, toán hạng tức thời và đích trực tiếp, độc lập với tên biến của bộ dịch ngược. Byte toàn cục và chuỗi được kiểm tra tại các địa chỉ biểu tượng được báo cáo độc lập.
 
-CLI/MCP discovery and decompilation, direct calls, target/profile/Evidence
-identity, snapshot round-trip and final process cleanup remain covered.
-Pseudocode presence is a liveness check, not proof of semantic equivalence.
-Instruction decoding and reader agreement do not establish runtime or complete
-floating-point semantics. Parser/profile tests are narrower checks, not
-substitutes for this real-provider run. Report the actual lanes run and leave
-unexecuted verification pending.
+Khám phá và dịch ngược qua CLI/MCP, các lệnh gọi trực tiếp, danh tính mục tiêu/profile/Bằng chứng, kiểm tra vòng lặp snapshot và dọn dẹp tiến trình cuối cùng vẫn được bao phủ đầy đủ. Sự hiện diện của mã giả (pseudocode) là kiểm tra độ sống (liveness), không phải bằng chứng về tính tương đương ngữ nghĩa. Việc giải mã lệnh và sự đồng thuận của trình đọc không xác lập runtime hay ngữ nghĩa dấu phẩy động hoàn chỉnh. Báo cáo các luồng thực tế đã chạy và để lại các xác minh chưa thực thi ở trạng thái chờ (pending).

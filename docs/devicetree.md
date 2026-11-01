@@ -1,43 +1,19 @@
-# Flattened devicetree inspection
+# Kiểm tra cây thiết bị phẳng (Flattened Devicetree - DTB)
 
-`inspect_devicetree` / `rea inspect-devicetree` reads a local DTB without an
-engine, target execution or external tools. It supports FDT versions 16 and 17;
-other versions return `unsupported_target`. Corrupt recognized blobs return
-`invalid_request`, and exhausted budgets return `resource_constraint` without
-partial success.
+`inspect_devicetree` / `rea inspect-devicetree` đọc tệp DTB cục bộ mà không cần engine, thực thi mục tiêu hay công cụ bên ngoài. Lệnh hỗ trợ FDT phiên bản 16 và 17; các phiên bản khác trả về `unsupported_target`. Blob nhận diện bị hỏng trả về `invalid_request`, và vượt quá ngân sách tài nguyên trả về `resource_constraint` mà không thành công một phần.
 
 ```bash
 rea inspect-devicetree /artifacts/board.dtb --json
 rea inspect-devicetree /artifacts/board.dtb --detail summary --evidence_output /artifacts/board-evidence.json --json
 ```
 
-The complete Evidence includes the artifact SHA-256, validated header fields,
-64-bit memory reservations as exact hexadecimal strings, and a flat node tree
-with explicit parent paths. Each property retains its file offset, byte length,
-and up to 256 raw bytes as hex. `truncated` qualifies the preview only; parsing
-coverage includes the entire declared tree. Version 16 has no declared structure
-size, so `header.size_dt_struct` is null.
+Bằng chứng hoàn chỉnh bao gồm SHA-256 của artifact, các trường tiêu đề đã xác thực, các vùng nhớ dành riêng 64-bit dưới dạng chuỗi thập lục phân chính xác, và cây node phẳng với đường dẫn cha rõ ràng. Mỗi thuộc tính giữ lại độ lệch tệp, độ dài byte và tối đa 256 byte thô dạng hex. `truncated` chỉ bổ nghĩa cho bản xem trước; độ bao phủ phân tích cú pháp bao gồm toàn bộ cây đã khai báo. Phiên bản 16 không có kích thước cấu trúc được khai báo, do đó `header.size_dt_struct` là null.
 
-Derived fields carry `confidence: derived`: standard ASCII string lists, scalar
-phandles and cell counts, and `reg` tuples using the parent's `#address-cells`
-and `#size-cells` (defaults 2 and 1). Zero-cell components are null (omitted), distinct from an encoded zero. Cell
-counts above four, invalid counts and incomplete tuples remain undecoded with a
-limitation. Addresses are bus-local; no `ranges` translation is attempted.
-Invalid or ambiguous strings remain raw, rather than being guessed.
+Các trường dẫn xuất mang `confidence: derived`: danh sách chuỗi ASCII tiêu chuẩn, phandle vô hướng và số lượng cell, cùng các tuple `reg` sử dụng `#address-cells` và `#size-cells` của cha (mặc định 2 và 1). Các thành phần 0-cell là null (bỏ qua), khác biệt với số 0 được mã hóa. Số lượng cell trên 4, số lượng không hợp lệ và tuple không đầy đủ vẫn không được giải mã kèm theo giới hạn. Địa chỉ là cục bộ trên bus; không có bản dịch `ranges` nào được thử nghiệm. Chuỗi không hợp lệ hoặc mơ hồ vẫn giữ nguyên dạng thô, không phỏng đoán.
 
-The summary is labeled derived and includes root compatible/model, chosen
-bootargs/stdout-path and aliases. An undecodable alias retains its name with a
-null path; it is not silently treated as absent. Single-cell `interrupt-parent`, `remote-endpoint` and `msi-parent`
-references resolve through phandle declarations. Missing or duplicate targets
-have null target paths. A node whose `phandle` and `linux,phandle` disagree
-adds a limitation, and references to either value stay unresolved. A present
-`phandle` that is not one cell also adds a limitation; `linux,phandle` cannot
-resolve that node when the canonical declaration is malformed. Binding-specific
-reference arrays and overlays are not resolved; an empty reference list does not
-prove absence of hardware links.
+Bản tóm tắt được dán nhãn là derived và bao gồm compatible/model gốc, bootargs/stdout-path và các bí danh (aliases) đã chọn. Một bí danh không thể giải mã sẽ giữ lại tên của nó với đường dẫn null; nó không bị âm thầm coi là vắng mặt. Các tham chiếu `interrupt-parent`, `remote-endpoint` và `msi-parent` đơn cell được giải quyết thông qua các khai báo phandle. Mục tiêu bị thiếu hoặc trùng lặp có đường dẫn mục tiêu là null. Node có `phandle` và `linux,phandle` không khớp nhau sẽ thêm một giới hạn, và các tham chiếu đến một trong hai giá trị sẽ không được giải quyết. `phandle` hiện diện nhưng không phải là một cell cũng thêm một giới hạn; `linux,phandle` không thể giải quyết node đó khi khai báo chuẩn bị lỗi. Các mảng tham chiếu đặc thù liên kết (binding) và overlay không được giải quyết; danh sách tham chiếu trống không chứng minh sự vắng mặt của các liên kết phần cứng.
 
-MCP `detail: summary` retains complete Evidence in the session. Follow its
-`parent_evidence_id` with `inspect_analysis_view`:
+MCP `detail: summary` giữ lại Bằng chứng hoàn chỉnh trong phiên làm việc. Lần theo `parent_evidence_id` của nó với `inspect_analysis_view`:
 
 ```json
 {
@@ -52,54 +28,28 @@ MCP `detail: summary` retains complete Evidence in the session. Follow its
 }
 ```
 
-Collections are `nodes` (identity and property counts), `properties` (requires an
-exact node path), `reservations`, and `references`. Pages use retained parsed
-facts and do not reopen the file. Each page carries fixed-size context
-(artifact, header, coverage and counts) rather than the summary strings, so a
-large `bootargs` value does not repeat on every page. Source indices are scoped to the selected
-collection and parent Evidence; property indices are scoped to their node.
+Các collection bao gồm `nodes` (danh tính và số lượng thuộc tính), `properties` (yêu cầu đường dẫn node chính xác), `reservations`, và `references`. Các trang sử dụng các dữ kiện đã phân tích được lưu giữ và không mở lại tệp. Mỗi trang mang ngữ cảnh kích thước cố định (artifact, header, độ bao phủ và số lượng) thay vì các chuỗi tóm tắt, do đó giá trị `bootargs` lớn không lặp lại trên mọi trang. Chỉ mục nguồn thuộc phạm vi collection đã chọn và Bằng chứng cha; chỉ mục thuộc tính thuộc phạm vi node của chúng.
 
-| Input budget     | Default | Ceiling |
-| ---------------- | ------: | ------: |
-| `max_file_bytes` |   4 MiB |  16 MiB |
-| `max_nodes`      |   8,192 |  65,536 |
-| `max_properties` |  32,768 | 262,144 |
-| `max_depth`      |      64 |     256 |
+| Ngân sách đầu vào | Mặc định | Mức trần |
+| ----------------- | -------: | -------: |
+| `max_file_bytes`  |    4 MiB |   16 MiB |
+| `max_nodes`       |    8.192 |   65.536 |
+| `max_properties`  |   32.768 |  262.144 |
+| `max_depth`       |       64 |      256 |
 
-Decoded names, paths, values and row overhead share a fixed 32 MiB representation
-allowance, charged before expansion. It has no runtime override.
+Tên, đường dẫn, giá trị đã giải mã và chi phí hàng dùng chung mức phụ cấp biểu diễn cố định 32 MiB, được tính trước khi mở rộng. Nó không có ghi đè lúc runtime.
 
-The reservation count also uses `max_properties`. CLI flags use kebab case,
-for example `--max-nodes 16384`. View pages contain at most 256 rows.
+Số lượng đặt trước (reservation) cũng sử dụng `max_properties`. Các cờ CLI sử dụng dạng kebab-case, ví dụ `--max-nodes 16384`. Các trang khung nhìn chứa tối đa 256 hàng.
 
-## Verification
+## Xác minh
 
-Synthetic tests cover v16/v17, malformed headers/blocks/names/tokens, resource
-limits, derived values, and CLI/MCP delivery including retained pages after
-removing the input. The optional real lane requires **dtc 1.8.1**:
+Các bài kiểm tra tổng hợp bao gồm v16/v17, tiêu đề/khối/tên/token lỗi, giới hạn tài nguyên, các giá trị dẫn xuất, và phân phối CLI/MCP bao gồm các trang được lưu giữ sau khi xóa tệp đầu vào. Luồng thực tế tùy chọn yêu cầu **dtc 1.8.1**:
 
 ```bash
 npm run build:cached
 node scripts/verify/firmware/devicetree.mjs
 ```
 
-It compiles a DTS with reserved-memory, chosen, aliases and phandles, compares
-REA's node paths against `dtc -I dtb -O dts`, and checks the derived report.
-`REA_DTC_PATH` selects the verification executable; it is not runtime setup.
+Nó biên dịch một DTS với reserved-memory, chosen, aliases và phandles, so sánh đường dẫn node của REA với `dtc -I dtb -O dts`, và kiểm tra báo cáo dẫn xuất. `REA_DTC_PATH` chọn tệp thực thi xác minh; nó không phải là cấu hình runtime.
 
-The dtc 1.8.1 lane ran on macOS arm64 with Node 26.5.0. Its seven node paths
-matched the decompiled tree. The report included `model: "REA DTB verification"`,
-`bootargs: "console=ttyS0"`, alias `serial0 -> /serial@1000`, reservation
-`0x80000000 + 0x1000`, and a resolved reference from `/consumer` to
-`/serial@1000`. The deliberately minimal remote-endpoint fixture produces dtc
-graph-binding warnings; this lane verifies FDT structure and selected property
-derivations, not hardware-binding validity.
-
-A repeat run of that complete compile/decompile/CLI verification took 2.13 s
-elapsed, 1.52 s user CPU and 0.27 s system CPU under `/usr/bin/time -l`. This is a
-small fixture with warm filesystem caches, not a cold-start or large-board
-benchmark. Peak process-family memory and whole-workflow token usage were not
-measured; the sandbox denied the memory-reporting system query. No pre-feature
-equivalent REA workflow exists for comparison. The pinned Node 24.22.1/npm
-11.16.0 toolchain was unavailable; dependency installation used the local cache
-with Node 26.5.0/npm 12.2.0 instead.
+Luồng dtc 1.8.1 đã chạy trên macOS arm64 với Node 26.5.0. Bảy đường dẫn node của nó khớp với cây đã dịch ngược. Báo cáo bao gồm `model: "REA DTB verification"`, `bootargs: "console=ttyS0"`, bí danh `serial0 -> /serial@1000`, đặt trước `0x80000000 + 0x1000`, và một tham chiếu đã giải quyết từ `/consumer` đến `/serial@1000`. Fixture remote-endpoint tối giản có chủ đích tạo ra cảnh báo liên kết đồ thị của dtc; luồng này xác minh cấu trúc FDT và các phép dẫn xuất thuộc tính đã chọn, không phải tính hợp lệ của liên kết phần cứng.

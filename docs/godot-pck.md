@@ -1,64 +1,27 @@
-# Godot PCK archives
+# Kho lưu trữ Godot PCK
 
-`inspect-artifact` and `extract-artifact` read ordinary Godot PCK formats 1, 2, 3
-and 4 without running the game or requiring Godot. Official Godot 4.4.1, 4.6.1
-and 4.7.1 produced formats 2, 3 and 4 respectively in verification; other engine
-releases have not been verified. Format 1 compatibility follows the
-[Godot 3.5 loader](https://github.com/godotengine/godot/blob/3.5/core/io/file_access_pack.cpp#L201-L242)
-and [exporter](https://github.com/godotengine/godot/blob/3.5/editor/editor_export.cpp#L1094-L1164)
-layout and is covered by synthetic standalone and embedded fixtures; an actual
-Godot 3 export has not been exercised.
+`inspect-artifact` và `extract-artifact` đọc các định dạng Godot PCK thông thường 1, 2, 3 và 4 mà không cần chạy trò chơi hoặc yêu cầu Godot. Godot 4.4.1, 4.6.1 và 4.7.1 chính thức lần lượt tạo ra các định dạng 2, 3 và 4 trong quá trình xác minh; các bản phát hành engine khác chưa được xác minh. Khả năng tương thích định dạng 1 tuân theo bố cục của [trình nạp Godot 3.5](https://github.com/godotengine/godot/blob/3.5/core/io/file_access_pack.cpp#L201-L242) và [trình xuất](https://github.com/godotengine/godot/blob/3.5/editor/editor_export.cpp#L1094-L1164) và được bao phủ bởi các fixture độc lập và nhúng tổng hợp; bản xuất Godot 3 thực tế chưa được thử nghiệm.
 
-Format 1 uses an 84-byte header, no pack or member flags, and absolute member
-offsets in the complete source file, including an embedded executable carrier.
-Its reported flags and file base are zero because those fields are absent.
-Zero-offset removal records remain unsupported; REA does not apply patches.
+Định dạng 1 sử dụng tiêu đề 84 byte, không có cờ pack hoặc cờ thành viên, và độ lệch thành viên tuyệt đối trong toàn bộ tệp nguồn, bao gồm cả vật mang thực thi được nhúng. Các cờ và cơ sở tệp được báo cáo của nó bằng 0 vì các trường đó không có. Các bản ghi xóa có độ lệch bằng 0 vẫn không được hỗ trợ; REA không áp dụng các bản vá.
 
-Inspection retains the original header and directory facts, including engine
-version, flags, declared file count, source paths, offsets and declared MD5.
-For a member declared as `res://scenes/main.gd`, the occurrence's
-`source_path` retains that exact declaration while `logical_path` is
-`scenes/main.gd`, the relative path used for lookup and extraction.
-Observed plaintext bytes receive content-addressed SHA-256 identities. MD5 is a
-container integrity claim, separate from the observed SHA-256. A mismatch fails
-by default; `--integrity-policy record-and-continue` retains the observed bytes
-and an explicit untrusted contradiction. An all-zero MD5 is an unknown claim,
-not a verified digest.
+Quá trình kiểm tra giữ lại các dữ kiện tiêu đề và thư mục ban đầu, bao gồm phiên bản engine, cờ, số lượng tệp đã khai báo, đường dẫn nguồn, độ lệch và MD5 đã khai báo. Đối với một thành viên được khai báo là `res://scenes/main.gd`, `source_path` của lần xuất hiện giữ lại khai báo chính xác đó trong khi `logical_path` là `scenes/main.gd`, đường dẫn tương đối được sử dụng để tra cứu và trích xuất. Các byte văn bản thuần quan sát được nhận danh tính SHA-256 định địa chỉ theo nội dung. MD5 là một xác nhận tính toàn vẹn của container, tách biệt khỏi SHA-256 quan sát được. Sự không khớp sẽ thất bại theo mặc định; `--integrity-policy record-and-continue` giữ lại các byte quan sát được và một mâu thuẫn không đáng tin cậy rõ ràng. MD5 toàn số 0 là một xác nhận unknown, không phải mã băm đã được xác minh.
 
 ## CLI
 
-Start with a compact summary and keep the complete Evidence bundle:
+Bắt đầu với một bản tóm tắt thu gọn và giữ lại bundle Bằng chứng hoàn chỉnh:
 
 ```sh
-rea inspect-artifact /artifacts/game.pck --detail summary \
-  --evidence_output /evidence/game.json --json
+rea inspect-artifact /artifacts/game.pck --detail summary   --evidence_output /evidence/game.json --json
 rea extract-artifact /artifacts/game.pck --json
 ```
 
-Summary delivery requires `--evidence_output` and never overwrites that file.
-The response contains `summary` Evidence and an `evidence_bundle` receipt.
-Without `--detail summary`, inspection keeps its complete inline delivery.
-Extraction creates a new temporary directory and returns its path. It rejects
-unsafe paths and verifies container identity before creating output.
+Phân phối tóm tắt yêu cầu `--evidence_output` và không bao giờ ghi đè lên tệp đó. Phản hồi chứa Bằng chứng `summary` và biên nhận `evidence_bundle`. Không có `--detail summary`, quá trình kiểm tra giữ phân phối nội dòng hoàn chỉnh của nó. Trích xuất tạo một thư mục tạm thời mới và trả về đường dẫn của nó. Nó từ chối các đường dẫn không an toàn và xác minh danh tính container trước khi tạo đầu ra.
 
-The same CLI commands locate a PCK at the beginning of a file or through its
-12-byte EOF trailer in an executable carrier. They do not scan arbitrary
-payloads or discover packs behind additional trailing signatures. The root
-content SHA-256 covers the whole carrier; its content classification remains
-native, while the inventory records the PCK role and exact pack bounds.
-An EOF marker is only a candidate: an invalid size or a pointed-to location
-without a `GDPC` header leaves native classification in place. Once the
-trailer points to a pack header, malformed or unsupported PCK content remains
-an error. This recognition boundary follows the Godot loader at pinned source
-revision [06d1e7a](https://github.com/godotengine/godot/blob/06d1e7a34ccde4029eed53d018cfde77dfe771d5/core/io/file_access_pack.cpp#L2099-L2146).
-Ordinary native `open_binary` detection remains unchanged.
+Cùng các lệnh CLI đó định vị một PCK ở đầu tệp hoặc thông qua trailer EOF 12 byte của nó trong một vật mang thực thi. Chúng không quét các tải trọng tùy ý hoặc phát hiện các pack đằng sau các chữ ký đuôi bổ sung. SHA-256 nội dung gốc bao gồm toàn bộ vật mang; phân loại nội dung của nó vẫn là native, trong khi bản kiểm kê ghi lại vai trò PCK và ranh giới pack chính xác. Dấu hiệu EOF chỉ là một ứng viên: kích thước không hợp lệ hoặc vị trí được trỏ tới không có tiêu đề `GDPC` sẽ giữ nguyên phân loại native. Khi trailer trỏ đến tiêu đề pack, nội dung PCK bị lỗi hoặc không hỗ trợ vẫn là một lỗi. Ranh giới nhận diện này tuân theo trình nạp Godot tại bản sửa đổi nguồn được ghim [06d1e7a](https://github.com/godotengine/godot/blob/06d1e7a34ccde4029eed53d018cfde77dfe771d5/core/io/file_access_pack.cpp#L2099-L2146). Khám phá `open_binary` native thông thường không thay đổi.
 
-## MCP and selected facts
+## MCP và các dữ kiện đã chọn
 
-For a standalone pack, call `open_binary` with its absolute path, then
-`inspect_artifact` with `{"detail":"summary"}`. The complete inspection and its
-nested inventory stay in the session. Use the summary's
-`normalized_result.parent_evidence_id` as the source of subsequent views:
+Đối với một pack độc lập, hãy gọi `open_binary` với đường dẫn tuyệt đối của nó, sau đó gọi `inspect_artifact` với `{"detail":"summary"}`. Quá trình kiểm tra hoàn chỉnh và bản kiểm kê lồng nhau của nó sẽ ở lại trong phiên làm việc. Sử dụng `normalized_result.parent_evidence_id` của bản tóm tắt làm nguồn cho các khung nhìn tiếp theo:
 
 ```json
 {
@@ -85,41 +48,6 @@ nested inventory stay in the session. Use the summary's
 }
 ```
 
-Occurrences retain `occurrence_id`, `artifact_id` and `parent_occurrence_id`
-even when `fields` is empty. Batch occurrence IDs with `occurrence_ids`, or
-join returned content IDs to `collection: "nodes"`, `artifact_ids: [...]` and
-`fields: ["sha256", "size"]`. Filters intersect; an omitted filter selects all
-available rows and an empty array selects none. Pagination follows the filtered
-canonical order. Multiple occurrences may share one content ID.
+Các lần xuất hiện giữ lại `occurrence_id`, `artifact_id` và `parent_occurrence_id` ngay cả khi `fields` trống. Gom nhóm ID xuất hiện với `occurrence_ids`, hoặc nối các ID nội dung trả về với `collection: "nodes"`, `artifact_ids: [...]` và `fields: ["sha256", "size"]`. Các bộ lọc giao nhau; bộ lọc bị bỏ qua sẽ chọn tất cả các hàng có sẵn và một mảng trống sẽ không chọn hàng nào. Phân trang tuân theo thứ tự chuẩn đã lọc. Nhiều lần xuất hiện có thể chia sẻ một ID nội dung.
 
-Views reuse authenticated immutable inventory facts and lazy lookup indexes;
-they do not reopen the source. These are historical observations, including
-after the source changes or disappears. Close the target with `close_binary`
-when finished. To read an exported bundle through the CLI, select its complete
-inspection record as `source: {kind: "inline", evidence: ...}` in a JSON request
-file for `rea inspect-analysis-view request.json --json`.
-
-## Coverage and limits
-
-PCK summaries expose root format metadata, available graph counts,
-`available_hash_status_counts`, and `source_coverage`. Inventory pages preserve
-producer coverage alongside page coverage. `source_complete` means all declared
-retained graph rows are available; it does not establish that an encrypted or
-otherwise unknown directory was examined. Missing matches in unknown coverage
-are not evidence of absence.
-
-Encrypted directories retain their header and declared file count with unknown
-entry coverage. Individually encrypted members retain directory metadata with
-unknown content identity; REA does not decrypt them. Sparse bundles likewise
-retain header facts with unknown member coverage. Extraction refuses an
-unreadable directory or encrypted member. This capability does not recover
-keys, decode Godot resources, decompile GDScript bytecode, analyze signals,
-apply patch/removal entries or execute targets.
-
-Readable logical member bytes, including repeated physical ranges, share the ZIP
-archive expansion policy: at most the larger of 256 MiB or 500 times the PCK's
-encoded byte span. Embedded carrier bytes do not enlarge that budget. The full
-directory is checked before any member is yielded, hashed or extracted. Encrypted
-members are not read and do not consume this plaintext-work allowance. Small
-bounded aliases remain valid. This is a processing/output resource bound, separate
-from the directory metadata retention budget and format validity.
+Các khung nhìn tái sử dụng các dữ kiện kiểm kê bất biến đã xác thực và các chỉ mục tra cứu lười; chúng không mở lại nguồn. Đây là các quan sát lịch sử, bao gồm cả sau khi nguồn thay đổi hoặc biến mất. Đóng mục tiêu bằng `close_binary` khi hoàn tất. Để đọc một bundle đã xuất thông qua CLI, hãy chọn bản ghi kiểm tra hoàn chỉnh của nó làm `source: {kind: "inline", evidence: ...}` trong tệp yêu cầu JSON cho `rea inspect-analysis-view request.json --json`.

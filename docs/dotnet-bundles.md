@@ -1,88 +1,34 @@
-# .NET single-file bundles
+# Gói tệp đơn lẻ .NET (Single-File Bundles)
 
-Use `rea inspect-artifact /absolute/path/host --json` to inventory an ordinary
-.NET single-file host and `rea extract-artifact /absolute/path/host --json` to
-materialize its members into a fresh, REA-owned output directory. With a host
-selected through `open_binary`, the corresponding MCP tools are
-`inspect_artifact` and `extract_artifact`. No .NET installation is needed for
-inspection or extraction.
+Sử dụng `rea inspect-artifact /absolute/path/host --json` để kiểm kê máy chủ tệp đơn lẻ .NET thông thường và `rea extract-artifact /absolute/path/host --json` để hiện thực hóa các thành viên của nó vào một thư mục đầu ra mới do REA sở hữu. Với máy chủ được chọn qua `open_binary`, các công cụ MCP tương ứng là `inspect_artifact` và `extract_artifact`. Không cần cài đặt .NET để kiểm tra hoặc trích xuất.
 
-For a compact inventory, call `inspect_artifact` with `detail: "summary"`,
-then use `inspect_analysis_view` with the returned `parent_evidence_id`.
-Inventory occurrence pages accept `logical_paths`, `occurrence_ids`, selected
-`fields`, `offset`, and `limit`; node pages accept batches of `artifact_ids`
-to retrieve expanded-byte digests. Include `format_metadata` and
-`source_location` when member declarations and stored extents matter. Identity
-fields survive projection, and the complete inspection Evidence stays retained.
+Đối với kiểm kê thu gọn, hãy gọi `inspect_artifact` với `detail: "summary"`, sau đó sử dụng `inspect_analysis_view` với `parent_evidence_id` được trả về. Các trang xuất hiện kiểm kê chấp nhận `logical_paths`, `occurrence_ids`, `fields` đã chọn, `offset`, và `limit`; các trang node chấp nhận các lô `artifact_ids` để truy xuất mã băm byte mở rộng. Bao gồm `format_metadata` và `source_location` khi các khai báo thành viên và phạm vi lưu trữ quan trọng. Các trường danh tính tồn tại qua phép chiếu và Bằng chứng kiểm tra hoàn chỉnh vẫn được giữ lại.
 
-REA detects the apphost marker and its preceding header offset from PE, ELF,
-and thin Mach-O bytes, regardless of filename. An unbundled apphost's zero
-offset remains an ordinary native artifact. Universal Mach-O slice inventory
-keeps its existing behavior; bundled contents inside slices are not expanded.
-When a native file has a recognized PyInstaller CArchive, apphost-marker
-scanning stops before its payload. A .NET helper stored inside that archive
-does not replace the outer container's format; an outer .NET host can still
-contain a PyInstaller helper as a member.
+REA phát hiện dấu hiệu apphost và độ lệch tiêu đề đứng trước của nó từ các byte PE, ELF và Mach-O mỏng, bất kể tên tệp. Độ lệch bằng 0 của apphost chưa đóng gói vẫn là một artifact native thông thường. Kiểm kê lát cắt Mach-O phổ quát giữ nguyên hành vi hiện có của nó; nội dung đi kèm bên trong các lát cắt không được mở rộng. Khi một tệp native có CArchive PyInstaller được nhận diện, việc quét dấu hiệu apphost sẽ dừng lại trước tải trọng của nó. Một trình trợ giúp .NET được lưu trữ bên trong kho lưu trữ đó không thay thế định dạng của container bên ngoài; một máy chủ .NET bên ngoài vẫn có thể chứa một trình trợ giúp PyInstaller dưới dạng thành viên.
 
-## Supported layout
+## Bố cục được hỗ trợ
 
-| Header | Producer generation                | Member encoding             |
-| ------ | ---------------------------------- | --------------------------- |
-| 1.0    | .NET Core 3.x                      | Uncompressed                |
-| 2.0    | .NET 5                             | Uncompressed                |
-| 6.0    | .NET 6 and later using this layout | Uncompressed or raw DEFLATE |
+| Tiêu đề | Thế hệ trình tạo                   | Mã hóa thành viên           |
+| ------- | ----------------------------------- | --------------------------- |
+| 1.0     | .NET Core 3.x                       | Không nén                   |
+| 2.0     | .NET 5                              | Không nén                   |
+| 6.0     | .NET 6 và mới hơn sử dụng bố cục này| Không nén hoặc raw DEFLATE  |
 
-Versions, minor versions, and flags outside this set are refused explicitly;
-they do not silently become an ordinary PE or a successful empty inventory.
-Flags 0 and the v2+ compatibility flag 1 are admitted. Unknown file-type bytes
-are retained with a limitation, rather than treated as executable authority.
-Encrypted/protected wrappers and recovering their payloads are outside this
-reader's scope.
+Các phiên bản, phiên bản phụ và cờ nằm ngoài tập hợp này đều bị từ chối rõ ràng; chúng không âm thầm trở thành một PE thông thường hoặc một bản kiểm kê rỗng thành công. Cờ 0 và cờ tương thích v2+ 1 được tiếp nhận. Byte loại tệp không xác định được giữ lại với một giới hạn, thay vì được coi là thẩm quyền thực thi. Các wrapper được mã hóa/bảo vệ và việc khôi phục tải trọng của chúng nằm ngoài phạm vi của trình đọc này.
 
-The host keeps its whole-file SHA-256. Each embedded file gets its expanded-byte
-SHA-256, path, declared size, compressed size, and `format_metadata` declaration
-(`major_version`, `minor_version`, `file_type`). Its `source_location` describes
-the stored host extent, including the compressed length when applicable.
-The root manifest's `root_format` is `dotnet-bundle`; the root content node
-still records its native PE/ELF/Mach-O format. A file-type declaration or `.dll`
-suffix does not establish a valid assembly. Inspect an extracted component
-explicitly with the managed tools to establish PE/CLI facts.
+Máy chủ giữ SHA-256 toàn bộ tệp của nó. Mỗi tệp nhúng nhận SHA-256 byte mở rộng, đường dẫn, kích thước khai báo, kích thước nén và khai báo `format_metadata` (`major_version`, `minor_version`, `file_type`). `source_location` của nó mô tả phạm vi máy chủ được lưu trữ, bao gồm độ dài nén khi áp dụng. `root_format` của manifest gốc là `dotnet-bundle`; node nội dung gốc vẫn ghi lại định dạng PE/ELF/Mach-O native của nó. Khai báo loại tệp hoặc phần mở rộng `.dll` không xác lập một assembly hợp lệ. Hãy kiểm tra rõ ràng một thành viên được trích xuất bằng các công cụ managed để xác lập các dữ kiện PE/CLI.
 
-## Admission and containment
+## Tiếp nhận và ngăn chặn
 
-Metadata is range-read with a 64 KiB cache. Policy budgets are 16 MiB of
-manifest metadata, 100,000 files, 64 KiB per UTF-8 string, 512 MiB of stored or
-expanded bytes per file, 256 path parts per member, 250,000 distinct in-memory
-path-tree nodes, and 2 GiB of aggregate expanded bytes. The node budget counts
-shared directory prefixes only once. These are REA
-resource policies, not limits imposed by Microsoft's format. Marker scanning
-streams 64 KiB chunks and reuses completed probe facts during extraction;
-ordinary native files without a marker incur one extra
-read pass before host hashing.
+Metadata được đọc theo dải với bộ đệm 64 KiB. Ngân sách chính sách là 16 MiB metadata manifest, 100.000 tệp, 64 KiB cho mỗi chuỗi UTF-8, 512 MiB byte được lưu trữ hoặc mở rộng cho mỗi tệp, 256 phần đường dẫn cho mỗi thành viên, 250.000 node cây đường dẫn riêng biệt trong bộ nhớ, và 2 GiB tổng số byte mở rộng. Ngân sách node chỉ đếm tiền tố thư mục dùng chung một lần. Đây là các chính sách tài nguyên của REA, không phải giới hạn do định dạng của Microsoft áp đặt. Quét dấu hiệu truyền các đoạn 64 KiB và tái sử dụng các dữ kiện thăm dò đã hoàn thành trong quá trình trích xuất; các tệp native thông thường không có dấu hiệu sẽ phát sinh thêm một lượt đọc trước khi băm máy chủ.
 
-Extraction hashes the whole host again through the same descriptor used to read
-members and compares it with the inventory's root digest before creating an
-output directory. This adds a full-host read pass to extraction, including when
-the embedded members themselves are small.
+Quá trình trích xuất băm lại toàn bộ máy chủ thông qua cùng bộ mô tả được sử dụng để đọc các thành viên và so sánh nó với mã băm gốc của bản kiểm kê trước khi tạo thư mục đầu ra. Điều này thêm một lượt đọc toàn bộ máy chủ vào quá trình trích xuất, bao gồm cả khi bản thân các thành viên nhúng nhỏ.
 
-Malformed/truncated headers, unsafe or conflicting paths, overlapping member
-ranges, members crossing the manifest, contradictory configuration extents,
-invalid UTF-8, corrupt/trailing compressed data, and incorrect expanded sizes
-fail before output publication. Source descriptor/path identity is checked
-during reading; extraction verifies the host digest and member bytes against
-the inventory. Existing output roots are never overwritten. Cancellation and
-failures release owned streams/descriptors through the shared extraction
-rollback scope.
+Tiêu đề bị lỗi/bị cắt cụt, đường dẫn không an toàn hoặc xung đột, dải thành viên chồng chéo, các thành viên cắt ngang manifest, phạm vi cấu hình mâu thuẫn, UTF-8 không hợp lệ, dữ liệu nén bị hỏng/dư thừa và kích thước mở rộng không chính xác sẽ thất bại trước khi xuất bản đầu ra. Danh tính bộ mô tả/đường dẫn nguồn được kiểm tra trong khi đọc; trích xuất xác minh mã băm máy chủ và các byte thành viên đối chiếu với bản kiểm kê. Các gốc đầu ra hiện có không bao giờ bị ghi đè. Việc hủy bỏ và lỗi sẽ giải phóng các luồng/bộ mô tả thuộc sở hữu thông qua phạm vi khôi phục trích xuất dùng chung.
 
-## Reproduce producer fixtures
+## Tái tạo fixture của trình tạo
 
-The source-owned generator uses the installed .NET 8 SDK's **Microsoft
-HostModel** producer to emit x64 v1, v2, plain v6, and compressed v6 bundles
-for Windows, Linux, or macOS. It does not run generated hosts or download runtime packs. Supply an
-SDK apphost template from
-`packs/Microsoft.NETCore.App.Host.<rid>/<version>/runtimes/<rid>/native/apphost`
-(`apphost.exe` on Windows). Pass `windows` (the default), `linux`, or `osx`
-as the optional third generator argument to match that template.
+Trình tạo thuộc mã nguồn sử dụng trình tạo **Microsoft HostModel** của .NET 8 SDK đã cài đặt để phát ra các gói x64 v1, v2, v6 thuần và v6 nén cho Windows, Linux hoặc macOS. Nó không chạy các máy chủ được tạo ra hoặc tải xuống các gói runtime. Cung cấp mẫu apphost SDK từ `packs/Microsoft.NETCore.App.Host.<rid>/<version>/runtimes/<rid>/native/apphost` (`apphost.exe` trên Windows). Truyền `windows` (mặc định), `linux`, hoặc `osx` làm đối số trình tạo thứ ba tùy chọn để khớp với mẫu đó.
 
 ```bash
 dotnet build scripts/fixtures/dotnet-bundle/BundleFixture.csproj -c Release --configfile scripts/fixtures/dotnet-bundle/NuGet.Config -o /absolute/path/producer -p:BaseIntermediateOutputPath=/absolute/path/producer-obj/
@@ -91,20 +37,4 @@ rea inspect-artifact /absolute/path/absent-bundles-directory/net8-compressed/Pro
 rea extract-artifact /absolute/path/absent-bundles-directory/net8-compressed/Probe.exe --json
 ```
 
-The generator writes `oracle.json` beside each host. An independent C#
-`BinaryReader`/`DeflateStream` pass records version, member types and stored
-extents, then compares every expanded member digest with its source file.
-Compare those records with inspection Evidence and the extracted bytes.
-This verifies Microsoft's compression writer separately from synthetic parser
-fixtures; it is not evidence that the bundled host executes on a target runtime.
-
-Deterministic boundary and public-entrypoint coverage:
-
-```bash
-npm run test:focused -- tests/boundary/filesystem/dotnetBundleArtifacts.test.ts tests/acceptance/dotnetBundleJourney.test.ts
-```
-
-Layout references: Microsoft's [manifest writer](https://github.com/dotnet/runtime/blob/v8.0.22/src/installer/managed/Microsoft.NET.HostModel/Bundle/Manifest.cs),
-[file entry writer](https://github.com/dotnet/runtime/blob/v8.0.22/src/installer/managed/Microsoft.NET.HostModel/Bundle/FileEntry.cs),
-[apphost marker handling](https://github.com/dotnet/runtime/blob/v8.0.22/src/installer/managed/Microsoft.NET.HostModel/AppHost/HostWriter.cs),
-and [compression producer](https://github.com/dotnet/runtime/blob/v8.0.22/src/installer/managed/Microsoft.NET.HostModel/Bundle/Bundler.cs).
+Trình tạo ghi `oracle.json` bên cạnh mỗi máy chủ. Một lượt `BinaryReader`/`DeflateStream` C# độc lập ghi lại phiên bản, loại thành viên và phạm vi được lưu trữ, sau đó so sánh mã băm của từng thành viên mở rộng với tệp nguồn của nó. So sánh các bản ghi đó với Bằng chứng kiểm tra và các byte được trích xuất. Điều này xác minh trình ghi nén của Microsoft tách biệt khỏi các fixture phân tích cú pháp tổng hợp; nó không phải là bằng chứng cho thấy máy chủ đi kèm sẽ thực thi trên một runtime mục tiêu.
