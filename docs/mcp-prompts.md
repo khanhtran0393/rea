@@ -1,87 +1,36 @@
-# Guided MCP prompts and completion
+# Lời nhắc MCP và gợi ý hoàn thành có hướng dẫn (Guided Prompts & Completion)
 
-REA exposes six provider-neutral investigation workflows through the MCP
-`prompts` capability. They complement the generated tool catalog; they do not add, remove, or
-invoke tools by themselves.
+REA cung cấp sáu quy trình điều tra trung lập với provider thông qua tính năng `prompts` của MCP. Chúng bổ trợ cho danh mục công cụ được tạo tự động; bản thân chúng không tự ý thêm, xóa hoặc gọi công cụ.
 
-Clients that expose tools but not prompts can use the target-free
-`guided_workflows` tool with `action: "list"` or `action: "render"`. CLI callers
-can use `rea guided-workflows` to list workflows, or pass `--action render`,
-`--workflow-id ID`, and `--arguments-json '{"feature":"offline search"}'` to
-render one. Both paths use the same contracts and renderer as native prompts;
-rendering returns guidance only and does not inspect a target, start analysis,
-or change session state.
+Các client hỗ trợ công cụ nhưng không hỗ trợ prompts có thể sử dụng công cụ không phụ thuộc mục tiêu `guided_workflows` với `action: "list"` hoặc `action: "render"`. Người dùng CLI có thể dùng `rea guided-workflows` để liệt kê các workflow, hoặc truyền `--action render`, `--workflow-id ID`, và `--arguments-json '{"feature":"offline search"}'` để hiển thị một workflow. Cả hai cách đều sử dụng cùng các hợp đồng và bộ hiển thị như lời nhắc native; việc hiển thị chỉ trả về các chỉ dẫn hướng dẫn và không kiểm tra mục tiêu, không bắt đầu phân tích hay thay đổi trạng thái phiên làm việc.
 
-The list contains workflow identifiers, descriptions, and argument requirements;
-render returns only the selected workflow's text. Unknown argument names and
-non-string values are rejected with field paths. `action: "list"` accepts no
-workflow identifier or arguments. The MCP adapter respects the same
-`REA_MCP_TOOL_FAMILIES` scope as native prompts, including render requests.
+Danh sách chứa định danh quy trình, mô tả và các yêu cầu đối số; lệnh render chỉ trả về nội dung văn bản của quy trình đã chọn. Tên đối số không xác định và giá trị không phải chuỗi sẽ bị từ chối kèm đường dẫn trường lỗi. `action: "list"` không nhận định danh quy trình hay đối số. Bộ điều hợp MCP tuân thủ cùng phạm vi `REA_MCP_TOOL_FAMILIES` như lời nhắc native, bao gồm cả yêu cầu render.
 
-To find a section in the installed guidance bundle by analyst question, use
-`search_guidance` and pass a returned locator to `read_guidance_section`. The
-CLI equivalent is `rea guidance --query "exact JavaScript module"`, followed
-by `rea guidance --action read --locator LOCATOR`. Search is limited to the
-packaged managed skill files, works without providers or a target, and returns
-deterministically paged matches. Every non-generic query word must occur in the
-section; generic-only queries return no matches. Results are documentation; locators
-are bound to the installed bundle and report stale or unavailable guidance without
-returning cached section content. A no-match result says nothing about analysis
-capability availability.
+Để tìm một phần trong gói hướng dẫn đã cài đặt theo câu hỏi của chuyên viên phân tích, sử dụng `search_guidance` và truyền bộ định vị (locator) trả về vào `read_guidance_section`. Lệnh CLI tương đương là `rea guidance --query "exact JavaScript module"`, tiếp theo là `rea guidance --action read --locator LOCATOR`. Tìm kiếm chỉ giới hạn trong các tệp skill được quản lý đóng gói sẵn, hoạt động không cần provider hay mục tiêu, và trả về các kết quả khớp được phân trang xác định. Mọi từ truy vấn không phổ quát phải xuất hiện trong phần đó; truy vấn chỉ gồm từ phổ quát sẽ không trả về kết quả. Kết quả là tài liệu; các locator được liên kết với gói đã cài đặt và báo cáo hướng dẫn cũ hoặc không khả dụng mà không trả về nội dung phần được lưu trong bộ nhớ đệm. Kết quả không khớp không nói lên điều gì về tính khả dụng của năng lực phân tích.
 
-Search returns at most 20 matches per page with 500-code-unit context excerpts.
-Read retrieves the complete selected section. Admission permits 1 MiB per file,
-4 MiB per bundle, 4,096 sections, and 25,165,824 expanded UTF-16 code units before
-section text is materialized. Unreadable or oversized bundles return
-`bundle_unavailable`, with no partial index or inferred absence. Cleanup failures
-remain errors with their retained retry owner. The bundle and complete section
-are bound by fixed-size hashes in locators, so a long heading does not make its own
-locator unreadable.
+Tìm kiếm trả về tối đa 20 kết quả khớp mỗi trang kèm đoạn trích ngữ cảnh 500 đơn vị mã. Lệnh Read truy xuất toàn bộ phần đã chọn. Tiếp nhận cho phép 1 MiB mỗi tệp, 4 MiB mỗi gói, 4.096 phần và 25.165.824 đơn vị mã UTF-16 mở rộng trước khi văn bản phần được cụ thể hóa. Các gói không đọc được hoặc quá kích thước sẽ trả về `bundle_unavailable`, không có chỉ mục một phần hoặc suy diễn sự vắng mặt. Lỗi dọn dẹp vẫn là lỗi kèm chủ sở hữu thử lại được lưu giữ. Gói và phần hoàn chỉnh được ràng buộc bởi các mã băm kích thước cố định trong locator, do đó tiêu đề dài không làm cho locator của chính nó trở nên không đọc được.
 
-## Prompt inventory
+## Danh mục lời nhắc (Prompt Inventory)
 
-| Prompt                            | Purpose                                                                              |
-| --------------------------------- | ------------------------------------------------------------------------------------ |
-| `investigate_feature`             | Trace a feature from discovery into relevant function evidence.                      |
-| `compare_application_versions`    | Compare two shipped artifacts, with optional static and runtime follow-up.           |
-| `verify_reconstruction`           | Evaluate a finite reconstruction specification against retained comparison Evidence. |
-| `trace_crash`                     | Correlate a crash symptom with static paths and optional process capture evidence.   |
-| `audit_residual_unknowns`         | Audit current residual-unknown heads and evidence-qualified resolution.              |
-| `prepare_bounded_process_capture` | Design a bounded controlled process experiment before execution.                     |
+| Lời nhắc | Mục đích |
+| :--- | :--- |
+| `investigate_feature` | Lần vết một tính năng từ phát hiện ban đầu đến bằng chứng hàm (function evidence) liên quan. |
+| `compare_application_versions` | So sánh hai hiện vật phát hành, với các bước theo dõi tĩnh và runtime tùy chọn. |
+| `verify_reconstruction` | Đánh giá một đặc tả khôi phục hữu hạn dựa trên Bằng chứng (Evidence) so sánh được lưu giữ. |
+| `trace_crash` | Tương quan triệu chứng sự cố (crash) với các đường dẫn tĩnh và bằng chứng bắt giữ tiến trình tùy chọn. |
+| `audit_residual_unknowns` | Kiểm toán các điểm chưa xác định còn sót lại (residual-unknown) và độ phân giải đủ điều kiện bằng chứng. |
+| `prepare_bounded_process_capture` | Thiết kế thử nghiệm tiến trình có giới hạn và kiểm soát trước khi thực thi. |
 
-A `REA_MCP_TOOL_FAMILIES` scope advertises a workflow only when every tool in
-its suggested steps belongs to a selected family. Partially available
-workflows are omitted from `prompts/list` — `prompts/get` reports them as not
-found — so a rendered prompt never directs the agent to a disabled call. The
-server identity digest and `rea mcp doctor` prompt inventory follow the same
-scope.
+Phạm vi `REA_MCP_TOOL_FAMILIES` chỉ quảng bá một quy trình làm việc khi mọi công cụ trong các bước đề xuất của nó thuộc về một nhóm được chọn. Các quy trình làm việc khả dụng một phần sẽ bị loại bỏ khỏi `prompts/list` — `prompts/get` báo cáo chúng là không tìm thấy — nhờ đó lời nhắc được render không bao giờ hướng dẫn tác tử gọi lệnh bị vô hiệu hóa. Mã nhận diện server và danh mục lời nhắc của `rea mcp doctor` tuân theo cùng một phạm vi.
 
-Every rendered prompt provides optional starting points using current REA tool
-names. Agents can call tools directly, skip irrelevant suggestions, and inspect
-provider or target state only when it helps answer the request or a tool
-requires it. The prompts also ask agents to keep observations, inferences, and
-unknowns distinct. Requested prompt arguments and completion choices are
-rendered as untrusted selection data, not instructions or authorization.
-Tool results include their Evidence inline. Prompts do not require a bundle or
-resource fetch to read a result; an Evidence ID is only a reference when a
-prompt argument or tool explicitly accepts one.
+Mỗi lời nhắc được render cung cấp các điểm bắt đầu tùy chọn bằng tên công cụ REA hiện tại. Các tác tử có thể gọi trực tiếp công cụ, bỏ qua các đề xuất không liên quan và chỉ kiểm tra trạng thái provider hoặc mục tiêu khi điều đó giúp trả lời yêu cầu hoặc công cụ đòi hỏi. Lời nhắc cũng yêu cầu tác tử phân biệt rõ ràng giữa quan sát (observations), suy luận (inferences) và điểm chưa xác định (unknowns). Các đối số lời nhắc được yêu cầu và lựa chọn hoàn thành được render dưới dạng dữ liệu lựa chọn không tin cậy, không phải là hướng dẫn hay sự ủy quyền. Kết quả công cụ bao gồm Bằng chứng (Evidence) nội tuyến. Lời nhắc không yêu cầu tìm nạp gói hoặc tài nguyên để đọc kết quả; ID Bằng chứng chỉ là tham chiếu khi đối số lời nhắc hoặc công cụ chấp nhận rõ ràng.
 
-For a JavaScript/Electron application directory, `investigate_feature` points
-directly to `analyze_javascript_application` with `input_path`; it does not
-require `open_binary`. When that Evidence, or `inspect_binary_layout` Evidence,
-is already retained, it suggests `inspect_analysis_view` before tracing a
-feature seed. The CLI equivalent is `rea analyze <directory>`.
-`open_binary` and the doctor target check admit files and Apple bundle
-directories (`.app`, `.appex`, `.framework`, `.xpc`, `.systemextension`,
-`.bundle` and `.plugin`). Another Apple bundle type is refused as unsupported,
-and another directory is reported with an available analysis action; this does
-not establish support for every directory format.
+Đối với thư mục ứng dụng JavaScript/Electron, `investigate_feature` trỏ trực tiếp đến `analyze_javascript_application` với `input_path`; nó không yêu cầu `open_binary`. Khi Bằng chứng đó, hoặc Bằng chứng `inspect_binary_layout`, đã được lưu giữ, nó đề xuất `inspect_analysis_view` trước khi lần vết hạt giống tính năng. Lệnh CLI tương đương là `rea analyze <thư_mục>`.
+`open_binary` và lệnh kiểm tra mục tiêu của doctor chấp nhận các tệp và thư mục gói Apple (`.app`, `.appex`, `.framework`, `.xpc`, `.systemextension`, `.bundle` và `.plugin`). Loại gói Apple khác bị từ chối là không được hỗ trợ, và thư mục khác được báo cáo kèm một hành động phân tích khả dụng; điều này không xác lập sự hỗ trợ cho mọi định dạng thư mục.
 
-For target paths in `compare_application_versions`, the prompt suggests
-opening each target before calling `inspect_artifact`; inspection operates on
-the active target and returns the graph and findings together inline.
+Đối với đường dẫn mục tiêu trong `compare_application_versions`, lời nhắc đề xuất mở từng mục tiêu trước khi gọi `inspect_artifact`; việc kiểm tra hoạt động trên mục tiêu đang hoạt động và trả về đồ thị cùng phát hiện nội tuyến.
 
-Use standard MCP discovery and retrieval:
+Sử dụng khám phá và truy xuất MCP tiêu chuẩn:
 
 ```json
 { "method": "prompts/list", "params": {} }
@@ -100,21 +49,13 @@ Use standard MCP discovery and retrieval:
 }
 ```
 
-The server advertises `listChanged: true`. Updating a registered guided prompt
-emits `notifications/prompts/list_changed`, allowing clients to refresh their
-cached prompt catalog.
+Server thông báo `listChanged: true`. Việc cập nhật lời nhắc có hướng dẫn đã đăng ký sẽ phát ra `notifications/prompts/list_changed`, cho phép client làm mới danh mục lời nhắc được lưu trong bộ nhớ đệm.
 
-Schema-invalid parameters to `prompts/get`, `prompts/list`,
-`completion/complete`, and `tools/list` return JSON-RPC `-32602` with field
-diagnostics. Correct the named fields and retry on the same connection.
-Unexpected handler failures retain JSON-RPC `-32603`.
+Các tham số không hợp lệ theo lược đồ gửi tới `prompts/get`, `prompts/list`, `completion/complete`, và `tools/list` trả về JSON-RPC `-32602` kèm chẩn đoán trường. Hãy sửa các trường được nêu tên và thử lại trên cùng một kết nối. Các lỗi xử lý không mong đợi trả về JSON-RPC `-32603`.
 
-## Session-aware completion
+## Gợi ý hoàn thành nhận biết phiên (Session-Aware Completion)
 
-MCP `completion/complete` completes guided-prompt arguments; it does not define
-completion for arbitrary tool-call arguments. REA attaches completion to
-optional prompt arguments that accept a session value. Suggestions provide
-identifiers only; they do not retrieve or replace the inline Evidence result.
+`completion/complete` của MCP hoàn thành các đối số lời nhắc có hướng dẫn; nó không định nghĩa tính năng hoàn thành cho đối số gọi công cụ tùy ý. REA gắn gợi ý hoàn thành vào các đối số lời nhắc tùy chọn chấp nhận giá trị theo phiên. Gợi ý chỉ cung cấp định danh; chúng không truy xuất hoặc thay thế kết quả Bằng chứng nội tuyến.
 
 ```json
 {
@@ -137,46 +78,25 @@ identifiers only; they do not retrieve or replace the inline Evidence result.
 }
 ```
 
-Completion sources are live projections of the current session:
+Nguồn hoàn thành là hình chiếu trực tiếp của phiên hiện tại:
 
-Document and procedure completion in a binary session reads an already-ready
-provider; it does not start analysis. A cold provider, a target transition, or
-unavailable inventory can return no suggestions. Run an analysis query first
-when you need inventory from a provider that supplies it. An empty completion
-list does not establish that the target has no procedures.
+Gợi ý tài liệu và thủ tục (procedure) trong phiên nhị phân đọc provider đã sẵn sàng; nó không bắt đầu phân tích. Một provider chưa tải (cold), chuyển đổi mục tiêu, hoặc danh mục kiểm kê không khả dụng có thể không trả về gợi ý nào. Hãy chạy truy vấn phân tích trước khi bạn cần kiểm kê từ provider cung cấp dữ liệu đó. Danh sách hoàn thành rỗng không chứng minh mục tiêu không có thủ tục.
 
-| Argument family     | Source and filtering                                                                                                                                 |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Document            | Current provider `list_documents` result.                                                                                                            |
-| Procedure           | The complete `list_procedures` inventory; all procedure addresses and uniquely named procedures are offered. Optional document context is forwarded. |
-| Provider            | `auto` plus sorted deep candidates from the current binary session; target-free completion does not start them.                                      |
-| Evidence            | Evidence IDs retained in the current session ledger, offered only for prompt arguments that accept Evidence references.                              |
-| Process capture     | IDs for retained Evidence whose operation and validated result identify process capture.                                                             |
-| Artifact manifest   | Manifest IDs from schema-valid retained artifact inventories.                                                                                        |
-| Artifact occurrence | Occurrence IDs present in schema-valid retained artifact inventory pages.                                                                            |
-| Residual unknown    | Current non-resolved unknown heads only.                                                                                                             |
+| Nhóm đối số | Nguồn và bộ lọc |
+| :--- | :--- |
+| Document | Kết quả `list_documents` của provider hiện tại. |
+| Procedure | Toàn bộ kiểm kê `list_procedures`; tất cả địa chỉ thủ tục và thủ tục có tên duy nhất đều được đưa ra. Ngữ cảnh tài liệu tùy chọn được chuyển tiếp. |
+| Provider | `auto` cộng với các ứng viên chuyên sâu đã sắp xếp từ phiên nhị phân hiện tại; gợi ý không phụ thuộc mục tiêu không khởi động chúng. |
+| Evidence | ID Bằng chứng được lưu giữ trong sổ cái phiên hiện tại, chỉ cung cấp cho các đối số lời nhắc chấp nhận tham chiếu Bằng chứng. |
+| Process capture | ID cho Bằng chứng được lưu giữ có thao tác và kết quả xác thực xác định việc bắt giữ tiến trình. |
+| Artifact manifest | ID Manifest từ các kiểm kê hiện vật được lưu giữ hợp lệ theo lược đồ. |
+| Artifact occurrence | ID Occurrence có mặt trong các trang kiểm kê hiện vật được lưu giữ hợp lệ theo lược đồ. |
+| Residual unknown | Chỉ các điểm chưa xác định hiện chưa được giải quyết. |
 
-Prefix matching is Unicode-normalized and case-insensitive; suggestions retain
-their original spelling. The server deduplicates them and sorts by code point
-for deterministic results. Procedure completion derives candidates from the
-complete inventory, so a name is offered only when it identifies one address in
-that inventory. Every name at a shared address participates in this check,
-including later rows that establish ambiguity. A completion reply carries at
-most 100 values, the MCP limit. `total` counts every match and
-`hasMore` is `true` when values were omitted. Completion has no paging
-controls. A longer prefix reaches an omitted value only when it excludes other
-matches; matching uses normalized, case-insensitive forms, so a value can stay
-unreachable when more than 100 matches share its normalized prefix.
+Khớp tiền tố được chuẩn hóa Unicode và không phân biệt chữ hoa chữ thường; các đề xuất giữ nguyên cách viết gốc. Server loại bỏ trùng lặp và sắp xếp theo điểm mã (code point) để cho kết quả xác định. Gợi ý thủ tục lấy ứng viên từ toàn bộ danh mục kiểm kê, do đó một tên chỉ được đưa ra khi nó xác định duy nhất một địa chỉ trong danh mục đó. Mỗi tên tại một địa chỉ dùng chung đều tham gia vào việc kiểm tra này, bao gồm cả các hàng sau xác lập tính mơ hồ. Phản hồi gợi ý mang tối đa 100 giá trị (giới hạn MCP). `total` đếm tất cả kết quả khớp và `hasMore` là `true` khi có giá trị bị bỏ sót. Hoàn thành không có điều khiển phân trang. Tiền tố dài hơn chỉ tiếp cận giá trị bị bỏ sót khi nó loại trừ các kết quả khớp khác; việc khớp sử dụng dạng chuẩn hóa, không phân biệt hoa thường, do đó một giá trị có thể không tiếp cận được khi có hơn 100 kết quả khớp dùng chung tiền tố chuẩn hóa của nó.
 
-## Lifecycle and safety
+## Vòng đời và an toàn (Lifecycle & Safety)
 
-Completion has no cache in REA. Opening or switching a target changes document
-and procedure suggestions on the next request. Closing the binary clears its
-Evidence ledger and residual-unknown registry, so identifiers from the closed
-session are no longer suggested. Provider errors, unsupported operations, and
-malformed provider output produce an empty completion list rather than an
-unverified identifier.
+Gợi ý hoàn thành không có bộ nhớ đệm trong REA. Việc mở hoặc chuyển đổi mục tiêu sẽ thay đổi đề xuất tài liệu và thủ tục trong yêu cầu tiếp theo. Đóng tệp nhị phân sẽ xóa sổ cái Bằng chứng và sổ đăng ký residual-unknown của nó, do đó các định danh từ phiên đã đóng sẽ không còn được đề xuất nữa. Lỗi provider, thao tác không được hỗ trợ và đầu ra provider bị sai định dạng tạo ra danh sách hoàn thành rỗng thay vì một định danh chưa được xác minh.
 
-Suggestions are starting points, not tool calls. A tool acts on the target,
-operation, and lifecycle fields in its own request; selecting a suggestion does
-not execute it or broaden those fields.
+Gợi ý là điểm bắt đầu, không phải là lệnh gọi công cụ. Một công cụ tác động lên các trường mục tiêu, thao tác và vòng đời trong yêu cầu của chính nó; việc chọn một gợi ý không thực thi nó hoặc mở rộng các trường đó.

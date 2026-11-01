@@ -1,62 +1,23 @@
-# Bun standalone executables
+# Tệp thực thi độc lập Bun (Bun Standalone Executables)
 
-`inspect-artifact` inventories embedded Bun module graphs in Mach-O `__BUN,__bun`,
-PE `.bun`, ELF `.bun`, and appended trailers. `extract-artifact` writes their stored
-module contents through the existing safe output tree. Neither operation executes
-the executable or decompiles bytecode.
+`inspect-artifact` kiểm kê đồ thị mô-đun Bun được nhúng trong Mach-O `__BUN,__bun`, PE `.bun`, ELF `.bun`, và các phần đuôi (trailers) được gắn thêm. `extract-artifact` ghi nội dung mô-đun được lưu trữ của chúng thông qua cây đầu ra an toàn hiện có. Cả hai thao tác đều không thực thi tệp thực thi hoặc dịch ngược bytecode.
 
 ```sh
 rea inspect-artifact ./hello --json
 rea extract-artifact ./hello --json
 ```
 
-In MCP, open the executable with `open_binary`, then call `inspect_artifact`.
-Use `detail: "summary"` for large graphs and `inspect_analysis_view` to page retained
-Evidence. The root metadata's `entry_point_logical_path` is the reader-owned
-location of its entry module. Use it as an inventory `logical_paths` filter,
-then read selected node fields with the returned content identity. This also
-works for names mapped to indexed extraction paths. The complete Evidence stays
-retained; no source-name normalization is needed in the caller.
+Trong MCP, mở tệp thực thi bằng `open_binary`, sau đó gọi `inspect_artifact`.
+Sử dụng `detail: "summary"` cho các đồ thị lớn và `inspect_analysis_view` để phân trang Bằng chứng (Evidence) được lưu giữ. `entry_point_logical_path` của metadata gốc là vị trí thuộc quyền sở hữu của bộ đọc đối với mô-đun điểm vào (entry module) của nó. Sử dụng nó làm bộ lọc `logical_paths` trong kiểm kê, sau đó đọc các trường node đã chọn với danh tính nội dung được trả về. Điều này cũng hoạt động cho các tên được ánh xạ tới đường dẫn giải nén được đánh chỉ mục. Toàn bộ Bằng chứng vẫn được lưu giữ; bên gọi không cần chuẩn hóa tên nguồn.
 
-The root reports the carrier, layout, module count, entry point, raw flags and
-compile exec-argv. Each module retains its source name, loader and encoding values,
-entry-point status, sizes and SHA-256. Sourcemaps, bytecode and module-info regions
-are separate children. Source names such as `/$bunfs/root/main.js` remain in
-metadata; extraction uses a relative path. Unsafe or non-UTF-8 names receive an
-indexed path and retain their source spelling or bytes. Virtual names deeper
-than 256 logical path parts also use an indexed path with an explicit limitation,
-preventing unbounded path-tree work while retaining the source fact. Duplicate names remain
-separate occurrences; ordinary extraction collision rules apply.
+Gốc báo cáo vật mang (carrier), bố cục, số lượng mô-đun, điểm vào, cờ thô và compile exec-argv. Mỗi mô-đun giữ lại tên nguồn, các giá trị loader và mã hóa, trạng thái điểm vào, kích thước và SHA-256. Sourcemaps, bytecode và các vùng module-info là các phần tử con riêng biệt. Tên nguồn như `/$bunfs/root/main.js` vẫn nằm trong metadata; việc giải nén sử dụng đường dẫn tương đối. Tên không an toàn hoặc không phải UTF-8 nhận một đường dẫn được đánh chỉ mục và giữ lại cách viết nguồn hoặc byte của chúng. Tên ảo sâu hơn 256 phần đường dẫn logic cũng sử dụng đường dẫn được đánh chỉ mục với một giới hạn rõ ràng, ngăn chặn việc xử lý cây đường dẫn không giới hạn trong khi vẫn giữ lại dữ kiện nguồn. Các tên trùng lặp vẫn là các lần xuất hiện riêng biệt; các quy tắc va chạm giải nén thông thường sẽ được áp dụng.
 
-The recognized record shapes are the 36-byte Bun 1.3.3 layout and the 52-byte
-Bun 1.3.9 layout. These labels identify structural layouts, not a detected compiler
-version. Bun does not store an explicit revision identifier: unknown table sizes
-and ambiguous known layouts are unsupported. A future layout that is byte-for-byte
-compatible cannot be distinguished. Invalid pointers and truncated claimed sections
-are malformed. An absent trailer without a named section does not establish a Bun
-graph. Unknown enum values remain raw, with a null name.
+Các hình dạng bản ghi được nhận diện là bố cục 36 byte của Bun 1.3.3 và bố cục 52 byte của Bun 1.3.9. Các nhãn này xác định các bố cục cấu trúc, không phải phiên bản trình biên dịch được phát hiện. Bun không lưu trữ định danh bản sửa đổi rõ ràng: kích thước bảng không xác định và bố cục đã biết mơ hồ là không được hỗ trợ. Một bố cục tương lai tương thích theo từng byte không thể phân biệt được. Con trỏ không hợp lệ và các section được khai báo bị cắt cụt là sai định dạng. Việc thiếu phần đuôi mà không có section được đặt tên không xác lập đồ thị Bun. Các giá trị enum không xác định vẫn ở dạng thô, với tên là null.
 
-Sourcemaps are stored Bun regions, not necessarily standalone JSON source maps.
-Extracted contents retain their original encoding. Use JavaScript analysis only on
-compatible source files; bytecode is retained as evidence, not decoded.
+Sourcemaps là các vùng Bun được lưu trữ, không nhất thiết là sourcemap JSON độc lập. Nội dung được giải nén giữ nguyên mã hóa ban đầu của chúng. Chỉ sử dụng phân tích JavaScript trên các tệp nguồn tương thích; bytecode được giữ lại làm bằng chứng, không được giải mã.
 
-Module parsing reads exact metadata ranges rather than loading stored asset
-bodies or whole pages around small pointers. A cache retains at most 256 KiB
-and 1,024 ranges for one reader preparation. Cumulative uncached metadata reads
-are limited to 256 MiB, checked before allocation or I/O. The module table,
-decoded strings and combined logical path tree have separate admission checks;
-at most 250,000 distinct path prefixes are admitted before inventory construction.
-Stored bodies are range-streamed for hashing and extraction. Header/suffix observations are reused
-only for the same admitted file state, with selected-path checks before publication.
+Phân tích cú pháp mô-đun đọc các phạm vi metadata chính xác thay vì tải các phần thân tài sản được lưu trữ hoặc toàn bộ các trang xung quanh các con trỏ nhỏ. Một bộ nhớ đệm giữ tối đa 256 KiB và 1.024 phạm vi cho một lần chuẩn bị của bộ đọc. Các lần đọc metadata không lưu vào bộ nhớ đệm tích lũy được giới hạn ở 256 MiB, được kiểm tra trước khi cấp phát hoặc I/O. Bảng mô-đun, chuỗi đã giải mã và cây đường dẫn logic kết hợp có các kiểm tra tiếp nhận riêng biệt; tối đa 250.000 tiền tố đường dẫn riêng biệt được tiếp nhận trước khi xây dựng kiểm kê. Các phần thân được lưu trữ được truyền theo phạm vi để băm và giải nén. Quan sát header/phần đuôi chỉ được tái sử dụng cho cùng một trạng thái tệp được tiếp nhận, với các kiểm tra đường dẫn đã chọn trước khi xuất bản.
 
-See [limits and recovery](design/limits-and-recovery.md) for admission ceilings.
-Synthetic tests cover the carriers and malformed declarations. Run
-`node scripts/verify-bun-standalone.mjs` after `npm run build:cached` for local Bun
-verification, and add `--docker` to compile a Linux fixture with `oven/bun:1.4.0`.
-Bun and Docker are fixture producers only and are not installed by REA.
+Xem [giới hạn và khôi phục](design/limits-and-recovery.md) để biết các mức trần tiếp nhận. Các bài kiểm tra tổng hợp bao gồm các vật mang và khai báo sai định dạng. Chạy `node scripts/verify-bun-standalone.mjs` sau `npm run build:cached` để xác minh Bun cục bộ, và thêm `--docker` để biên dịch một fixture Linux với `oven/bun:1.4.0`. Bun và Docker chỉ là các trình tạo fixture và không được REA cài đặt.
 
-Layout references: [Bun 1.3.3 serializer](https://github.com/oven-sh/bun/blob/bun-v1.3.3/src/StandaloneModuleGraph.zig)
-and [Bun 1.3.9 serializer](https://github.com/oven-sh/bun/blob/bun-v1.3.9/src/StandaloneModuleGraph.zig).
-
-The current 52-byte record order can also be checked in the
-[Bun 1.4.4 Rust serializer](https://github.com/oven-sh/bun/blob/bun-v1.4.4/src/standalone_graph/StandaloneModuleGraph.rs).
+Tài liệu tham khảo bố cục: [Bộ tuần tự hóa Bun 1.3.3](https://github.com/oven-sh/bun/blob/bun-v1.3.3/src/StandaloneModuleGraph.zig) và [Bộ tuần tự hóa Bun 1.3.9](https://github.com/oven-sh/bun/blob/bun-v1.3.9/src/StandaloneModuleGraph.zig).

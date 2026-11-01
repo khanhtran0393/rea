@@ -1,17 +1,12 @@
-# Erlang BEAM files
+# Tệp Erlang BEAM (Erlang BEAM Files)
 
-`inspect_erlang_beam` / `inspect-erlang-beam` answers whether one selected
-local file is a `FOR1`/`BEAM` IFF container, which chunks that form stores, and
-which atom, export, import, lambda, and Code-header fields those chunks carry.
-It reads the file without executing bytecode and does not require an Erlang
-installation or BEAM emulator.
+`inspect_erlang_beam` / `inspect-erlang-beam` trả lời câu hỏi liệu một tệp cục bộ đã chọn có phải là vùng chứa IFF `FOR1`/`BEAM` hay không, biểu mẫu đó lưu trữ các đoạn (chunks) nào, và các trường atom, export, import, lambda cùng header Code mà các đoạn đó mang theo. Nó đọc tệp mà không cần thực thi bytecode và không yêu cầu cài đặt Erlang hoặc trình giả lập BEAM.
 
 ```bash
-rea inspect-erlang-beam /absolute/path/to/app.beam --json
+rea inspect-erlang-beam /duong/dan/tuyet/doi/toi/app.beam --json
 ```
 
-The CLI resolves relative paths against the caller's working directory. MCP
-requires an absolute filesystem path and preserves that exact selection:
+CLI phân giải các đường dẫn tương đối dựa trên thư mục làm việc của bên gọi. MCP yêu cầu đường dẫn hệ thống tệp tuyệt đối và bảo toàn lựa chọn chính xác đó:
 
 ```json
 {
@@ -20,44 +15,19 @@ requires an absolute filesystem path and preserves that exact selection:
 }
 ```
 
-## Observations
+## Quan sát (Observations)
 
-The inline Evidence result contains the artifact path, SHA-256, and byte length.
-`chunks` lists every IFF chunk name, file range, and payload SHA-256.
-Repeated names retain separate chunk occurrences. Decoded tables and the Code
-header use the last occurrence of each name, matching OTP's loader; the chunk
-inventory still exposes earlier payloads and their source ranges.
-The BEAM form size bounds the parsed chunks. Bytes after the declared form are
-ignored by the parser but remain part of the selected artifact's byte length
-and SHA-256.
+Kết quả Bằng chứng (Evidence) nội tuyến chứa đường dẫn hiện vật, SHA-256 và độ dài byte. `chunks` liệt kê từng tên đoạn IFF, phạm vi tệp và SHA-256 của payload. Các tên lặp lại giữ lại các lần xuất hiện đoạn riêng biệt. Các bảng đã giải mã và header Code sử dụng lần xuất hiện cuối cùng của mỗi tên, khớp với bộ nạp của OTP; kho kiểm kê đoạn vẫn để lộ các payload trước đó và phạm vi nguồn của chúng. Kích thước biểu mẫu BEAM giới hạn các đoạn đã phân tích cú pháp. Các byte sau biểu mẫu đã khai báo bị bộ phân tích cú pháp bỏ qua nhưng vẫn là một phần của độ dài byte và SHA-256 của hiện vật đã chọn.
 
-When a selected `AtU8` or `Atom` table is decoded, `atoms` is the 1-based name table and
-`module` is atom 1. Both the pre-OTP 28 table and the OTP 28+ compact table
-(negated count, compact-encoded name lengths) are read. `exports`, `imports`, and `lambdas` resolve atom indices to
-those names when the table is present; unresolved indices keep `function` or
-`module` null.
+Khi một bảng `AtU8` hoặc `Atom` đã chọn được giải mã, `atoms` là bảng tên dựa trên 1 và `module` là atom 1. Cả bảng trước OTP 28 và bảng nhỏ gọn OTP 28+ (số lượng phủ định, độ dài tên được mã hóa nhỏ gọn) đều được đọc. `exports`, `imports`, và `lambdas` phân giải các chỉ số atom thành những tên đó khi bảng có mặt; các chỉ số chưa được phân giải giữ `function` hoặc `module` là null.
 
-`code` reports the Code chunk instruction-set, opcode maximum, label count,
-function count, and the instruction stream's file range. Missing optional
-tables are null, not empty-everywhere.
+`code` báo cáo tập lệnh của đoạn Code, opcode tối đa, số lượng nhãn, số lượng hàm và phạm vi tệp của luồng lệnh. Các bảng tùy chọn bị thiếu là null, không phải là rỗng ở mọi nơi.
 
-A zero-byte `AtU8` falls back to an available legacy `Atom` table, following
-[OTP 20.3's atom selection](https://github.com/erlang/otp/blob/a113f6117fd696ea6f84ed754055b4ec97a7ccb2/erts/emulator/beam/beam_load.c).
-A nonempty `AtU8` retains UTF-8 precedence, including an explicit zero atom
-count; malformed nonempty data fails instead of falling back. An empty atom
-chunk without an alternate table still fails its required count header.
-Absent and zero-byte optional `FunT` chunks produce `lambdas: null`, while a
-four-byte zero row count produces `lambdas: []`. This follows
-[OTP 29's positive-size lambda parsing rule](https://github.com/erlang/otp/blob/550d7b7898706c7822362c42e7b93120c1d1f29a/erts/emulator/beam/beam_file.c).
-Empty payloads retain their ranges and SHA-256 in the chunk inventory. These
-rules apply to the last occurrence of each chunk name; an empty final occurrence
-does not revive an earlier payload of that name. Nonempty truncated tables remain
-format failures.
+Một `AtU8` 0 byte sẽ quay về bảng `Atom` cũ có sẵn, theo [quy tắc chọn atom của OTP 20.3](https://github.com/erlang/otp/blob/a113f6117fd696ea6f84ed754055b4ec97a7ccb2/erts/emulator/beam/beam_load.c). Một `AtU8` không rỗng giữ lại ưu tiên UTF-8, bao gồm cả số lượng atom bằng 0 rõ ràng; dữ liệu không rỗng bị lỗi sẽ thất bại thay vì quay về dự phòng. Một đoạn atom rỗng không có bảng thay thế vẫn thất bại ở header số lượng bắt buộc của nó. Các đoạn `FunT` tùy chọn bị thiếu và 0 byte tạo ra `lambdas: null`, trong khi số lượng hàng bằng 0 4 byte tạo ra `lambdas: []`. Điều này tuân theo [quy tắc phân tích cú pháp lambda kích thước dương của OTP 29](https://github.com/erlang/otp/blob/550d7b7898706c7822362c42e7b93120c1d1f29a/erts/emulator/beam/beam_file.c). Payload rỗng giữ lại phạm vi và SHA-256 của chúng trong kiểm kê đoạn. Các quy tắc này áp dụng cho lần xuất hiện cuối cùng của mỗi tên đoạn; một lần xuất hiện cuối cùng rỗng không làm sống lại payload trước đó của tên đó. Các bảng không rỗng bị cắt cụt vẫn là các lỗi định dạng.
 
-## Select retained facts
+## Chọn dữ kiện được lưu giữ (Select Retained Facts)
 
-Complete output remains the default. Request a summary with a `beam` view to
-read a few facts in the first call while retaining the complete inspection:
+Đầu ra hoàn chỉnh vẫn là mặc định. Yêu cầu một bản tóm tắt với chế độ xem `beam` để đọc một vài dữ kiện trong lần gọi đầu tiên trong khi vẫn giữ lại cuộc kiểm tra hoàn chỉnh:
 
 ```json
 {
@@ -76,35 +46,15 @@ read a few facts in the first call while retaining the complete inspection:
 }
 ```
 
-`normalized_result.page.items` contains the matching rows. `source_index` is
-zero-based in the original collection and scoped to `parent_evidence_id` and
-that collection. It does not replace the original one-based atom `index` or a
-lambda's own `index`. Every matching function name survives, including different
-arities. Names are exact retained display strings; raw indexes remain available
-when names are unresolved or displayed names collide.
+`normalized_result.page.items` chứa các hàng khớp. `source_index` dựa trên 0 trong bộ sưu tập ban đầu và được giới hạn phạm vi theo `parent_evidence_id` và bộ sưu tập đó. Nó không thay thế `index` atom dựa trên 1 ban đầu hoặc `index` của chính lambda. Mọi tên hàm khớp đều tồn tại, bao gồm cả các arity khác nhau. Tên là chuỗi hiển thị được lưu giữ chính xác; chỉ mục thô vẫn khả dụng khi tên chưa được phân giải hoặc tên hiển thị xung đột.
 
-Collections are `atoms`, `exports`, `imports`, `lambdas`, and `chunks`. `names`
-selects atom/chunk names or function names; imports additionally support exact
-`modules`. Filters intersect. `indices` selects original collection indexes;
-`fields` selects that collection's own fields. Empty selector arrays match
-nothing, and `fields: []` returns only `source_index`. Offset/limit page matching
-rows in original order (defaults 0/64). Unfiltered pages slice the retained
-collection; queries do not decode the file again.
+Các bộ sưu tập gồm `atoms`, `exports`, `imports`, `lambdas`, và `chunks`. `names` chọn tên atom/đoạn hoặc tên hàm; imports hỗ trợ thêm các `modules` chính xác. Các bộ lọc giao nhau. `indices` chọn các chỉ mục bộ sưu tập ban đầu; `fields` chọn các trường riêng của bộ sưu tập đó. Mảng bộ chọn rỗng không khớp với mục nào và `fields: []` chỉ trả về `source_index`. Offset/limit phân trang các hàng khớp theo thứ tự ban đầu (mặc định 0/64). Các trang không được lọc cắt lát bộ sưu tập được lưu giữ; các truy vấn không giải mã lại tệp.
 
-For `chunks`, `names` matches the four-character IFF chunk tag (for example
-`"AtU8"`, `"Code"`, `"ExpT"`); available `fields` are `index`, `name`,
-`location`, and `payload`. For `lambdas`, `names` matches the resolved function
-name from the atom table; `null` names (unresolved atom indices) are never
-selected by a name filter. For `atoms`, `names` matches the decoded atom name
-string.
+Đối với `chunks`, `names` khớp với thẻ đoạn IFF 4 ký tự (ví dụ `"AtU8"`, `"Code"`, `"ExpT"`); các `fields` khả dụng là `index`, `name`, `location`, và `payload`. Đối với `lambdas`, `names` khớp với tên hàm đã giải quyết từ bảng atom; tên `null` (chỉ số atom chưa phân giải) không bao giờ được chọn bởi bộ lọc tên. Đối với `atoms`, `names` khớp với chuỗi tên atom đã giải mã.
 
-`beam` keeps the module, form/Code bounds, original source coverage, and table
-counts. A null count means no table was decoded; zero means a decoded empty
-table. Missing tables and unresolved atom names remain explicit, and an empty
-page does not establish runtime absence. Page coverage is separate from the
-source's examined chunks and parser budgets.
+`beam` giữ lại mô-đun, ranh giới biểu mẫu/Code, độ bao phủ nguồn ban đầu và số lượng bảng. Số đếm null nghĩa là không có bảng nào được giải mã; 0 nghĩa là một bảng rỗng đã giải mã. Bảng bị thiếu và tên atom chưa phân giải vẫn rõ ràng, và một trang trống không xác lập sự vắng mặt runtime. Độ bao phủ trang tách biệt với các đoạn được kiểm tra và ngân sách bộ phân tích cú pháp của nguồn.
 
-CLI summary delivery requires a destination for the complete Evidence bundle:
+Phân phối tóm tắt CLI yêu cầu một đích cho gói Bằng chứng hoàn chỉnh:
 
 ```sh
 rea inspect-erlang-beam /artifacts/app.beam --detail summary \
@@ -113,21 +63,10 @@ rea inspect-erlang-beam /artifacts/app.beam --detail summary \
 rea inspect-analysis-view '{"source":{"kind":"evidence-file","path":"/reports/app-beam.evidence.json"},"view":{"kind":"beam","collection":"imports","modules":["erlang"]}}' --json
 ```
 
-The bundle retains the complete report. Subsequent MCP queries may use
-`source: {kind: "retained-evidence", evidence_id: parent_evidence_id}` or an
-Evidence file. Retained and offline views still work after the original BEAM
-file is deleted. Supplying `view` requires `detail: "summary"`; omitting it
-returns only the structural summary. Selection changes delivery, not parsing or
-coverage, and executes no bytecode.
+Gói giữ lại báo cáo hoàn chỉnh. Các truy vấn MCP tiếp theo có thể sử dụng `source: {kind: "retained-evidence", evidence_id: parent_evidence_id}` hoặc tệp Bằng chứng. Chế độ xem ngoại tuyến và được lưu giữ vẫn hoạt động sau khi tệp BEAM gốc bị xóa. Cung cấp `view` yêu cầu `detail: "summary"`; bỏ qua nó chỉ trả về bản tóm tắt cấu trúc. Việc lựa chọn chỉ thay đổi phân phối, không thay đổi phân tích cú pháp hoặc độ bao phủ và không thực thi bytecode nào.
 
-## Limits and failures
+## Giới hạn và lỗi (Limits & Failures)
 
-The selected file is limited to 64 MiB by default (512 MiB maximum). At most
-64 chunks and 4096 atoms are examined by default, and at most 65536 export,
-import, and lambda rows together. Malformed `FOR1`/`BEAM` headers, truncated
-chunks, and `AtU8` names that are not valid UTF-8 fail without partial success.
+Tệp được chọn được giới hạn ở 64 MiB theo mặc định (tối đa 512 MiB). Tối đa 64 đoạn và 4096 atom được kiểm tra theo mặc định, và tối đa 65536 hàng export, import, và lambda cùng nhau. Header `FOR1`/`BEAM` bị lỗi, các đoạn bị cắt cụt và tên `AtU8` không phải là UTF-8 hợp lệ sẽ thất bại mà không có thành công một phần.
 
-This workflow does not execute bytecode, inflate `LitT` literals, or decode
-`Attr`/`CInf` external-term payloads. Complete coverage describes this static
-chunk and table report; it does not establish that an Erlang runtime can load
-or execute the module.
+Quy trình làm việc này không thực thi bytecode, không giải nén ký tự `LitT`, hoặc giải mã payload thuật ngữ bên ngoài `Attr`/`CInf`. Độ bao phủ hoàn chỉnh mô tả báo cáo bảng và đoạn tĩnh này; nó không xác lập rằng một runtime Erlang có thể nạp hoặc thực thi mô-đun.

@@ -1,180 +1,58 @@
-# Python packaged applications
+# Ứng dụng đóng gói bằng Python (Python Packaged Applications)
 
-REA statically inventories PyInstaller executables with an appended CArchive.
-`inspect_artifact` and `extract_artifact` share the same reader through CLI and
-MCP. They read archive bytes without launching the application. Bytecode
-source decompilation, encrypted PYZ recovery, zipapp and PEX analysis are outside
-this capability.
+REA kiểm kê tĩnh các tệp thực thi PyInstaller có đính kèm CArchive.
+`inspect_artifact` và `extract_artifact` dùng chung một bộ đọc thông qua CLI và MCP. Chúng đọc các byte của kho lưu trữ mà không cần khởi chạy ứng dụng. Việc dịch ngược mã nguồn bytecode, khôi phục PYZ bị mã hóa, phân tích zipapp và PEX nằm ngoài năng lực này.
 
-`extract_artifact.coverage` preserves the inventory producer's source traversal
-scope and certainty. Successful publication proves that the selected inventoried
-regular files were written and verified; it does not prove that every source
-entry was representable or every embedded payload was decoded. For example, a
-directory containing an invalid UTF-8 filename can publish its representable
-files successfully while coverage remains `unknown`. Extraction retains the
-inventory's command provenance and limitations, plus the selected occurrences'
-path-qualified derivation notices. A reconstructed `.pyc` header therefore stays
-identified as derived bytes in the extraction result.
+`extract_artifact.coverage` bảo toàn phạm vi và độ chắc chắn của quá trình duyệt nguồn từ phía bộ kiểm kê. Việc xuất bản thành công chứng minh rằng các tệp thông thường được kiểm kê đã chọn đã được ghi và xác minh; điều này không chứng minh rằng mọi mục nguồn đều có thể biểu diễn hoặc mọi payload nhúng đều được giải mã. Ví dụ: một thư mục chứa tên tệp UTF-8 không hợp lệ có thể xuất bản các tệp biểu diễn được của nó thành công trong khi độ bao phủ vẫn là `unknown`. Việc giải nén giữ nguyên xuất xứ lệnh và các giới hạn của kho kiểm kê, cộng với các thông báo suy dẫn đủ điều kiện đường dẫn của các lần xuất hiện (occurrences) được chọn. Do đó, một header `.pyc` được tái tạo vẫn được xác định là byte suy dẫn trong kết quả giải nén.
 
-## Facts and focused queries
+## Dữ kiện và truy vấn tập trung (Facts & Focused Queries)
 
-The root occurrence's `format_metadata` records the CArchive layout (2.0 or
-2.1), archive and cookie offsets, table extent, entry count, raw Python version,
-normalized major/minor when known, library name and encryption marker. Member
-metadata retains the original name, table index, type, compression flag,
-relative offset and known directory record extent. Logical paths follow the
-carrier's path dialect: backslashes separate components for PE carriers, while
-they remain literal filename characters for POSIX carriers. The source name
-always retains its stored spelling in occurrence `source_path` and
-`format_metadata.source_name`. For PYZ rows, that source is the exact module or
-data key in the PYZ table, not a reconstructed filesystem name;
-`format_metadata.container_name` identifies the containing PYZ image. If the
-carrier dialect is unconfirmed, REA preserves backslashes verbatim instead of
-inferring POSIX semantics.
-`relative_offset` is relative to the CArchive start for CArchive rows, or to
-the decoded PYZ image for PYZ rows. A CArchive directory record starts at
-`archive_start + toc_offset + directory_record_offset`; its size is
-`directory_record_size`. PYZ row directory extents remain unknown.
-CArchive type `b` retains PyInstaller's executable-member declaration in the
-generic `executable` fact; type `x` remains non-executable. This comes from the
-archive type code, not the filename or member contents.
-Distinct CArchive rows retain their table-index identities even when they
-share a logical path. Inventory can preserve both a file and a decoded PYZ
-directory at that path, including the PYZ children; extraction refuses a
-destination conflict instead of silently omitting those children.
+`format_metadata` của lần xuất hiện gốc ghi lại bố cục CArchive (2.0 hoặc 2.1), độ lệch cookie và kho lưu trữ, phạm vi bảng, số lượng mục, phiên bản Python thô, phiên bản major/minor chuẩn hóa khi biết, tên thư viện và dấu hiệu mã hóa. Metadata của thành viên lưu giữ tên gốc, chỉ số bảng, loại, cờ nén, độ lệch tương đối và phạm vi bản ghi thư mục đã biết. Các đường dẫn logic tuân theo quy ước đường dẫn của vật mang: dấu gạch chéo ngược phân tách các thành phần cho vật mang PE, trong khi chúng vẫn là ký tự tên tệp theo nghĩa đen cho vật mang POSIX. Tên nguồn luôn giữ nguyên cách viết được lưu trữ trong `source_path` và `format_metadata.source_name`. Đối với các hàng PYZ, nguồn đó là khóa dữ liệu hoặc mô-đun chính xác trong bảng PYZ, không phải tên hệ thống tệp được tái tạo; `format_metadata.container_name` xác định ảnh PYZ chứa nó. Nếu quy ước của vật mang chưa được xác nhận, REA bảo toàn nguyên văn các dấu gạch chéo ngược thay vì suy diễn ngữ nghĩa POSIX.
 
-Namespace packages remain metadata declarations at their projected query path;
-they do not claim a destination directory. Their `relative_offset` and
-`compressed_size` preserve any payload declared by older producers, while
-`declared_size` is zero because no bytecode is materialized for a namespace.
-Every declared span must end before the PYZ table of contents.
-Malformed CArchive TOC rows identify their zero-based table index and byte offset
-within the TOC, including truncated headers, invalid names, compression flags,
-and type codes. The failure retains its original format reason.
-PYZ `compression_flag` is derived from storage: nonempty payloads are compressed,
-including legacy namespaces; an empty namespace has no compressed payload.
+`relative_offset` là tương đối so với phần đầu CArchive đối với các hàng CArchive, hoặc đối với ảnh PYZ đã giải mã cho các hàng PYZ. Bản ghi thư mục CArchive bắt đầu tại `archive_start + toc_offset + directory_record_offset`; kích thước của nó là `directory_record_size`. Phạm vi thư mục hàng PYZ vẫn chưa được biết.
+CArchive loại `b` lưu giữ khai báo thành viên thực thi của PyInstaller trong dữ kiện `executable` chung; loại `x` vẫn là không thể thực thi. Điều này đến từ mã loại lưu trữ, không phải từ tên tệp hoặc nội dung thành viên.
 
-CArchive type `o` entries are runtime options. They are metadata occurrences,
-with no content artifact or extractable file. Their query paths are
-`__pyinstaller__/runtime-options/<table index>`; the option text is
-`format_metadata.source_name`. Repeated declarations retain distinct occurrence
-identities. These paths do not claim output filesystem names.
+Các hàng CArchive riêng biệt giữ nguyên định danh chỉ số bảng ngay cả khi chúng dùng chung đường dẫn logic. Kiểm kê có thể lưu giữ cả một tệp và một thư mục PYZ đã giải mã tại đường dẫn đó, bao gồm cả các phần tử con PYZ; việc giải nén sẽ từ chối xung đột đích thay vì lặng lẽ bỏ qua các phần tử con đó.
 
-Type `d` entries are multipackage dependencies. They are also metadata, under
-`__pyinstaller__/dependencies/<table index>`, and never materialize an empty file.
-The reader preserves the raw reference and splits its first colon into
-`dependency_archive` and `dependency_member`. `dependency_status` remains
-`unresolved`, or `invalid-reference` with unknown parts for malformed references.
-`external_dependency_count` summarizes these declarations. REA does not open
-another executable or claim its contents are available. A real file with the
-same logical path as metadata remains independently extractable.
-Both declaration types require empty payloads and no compression. Their query
-paths do not participate in filesystem collision checks, directory ancestry or
-source-map target lookup; their parent identifies the declaring container.
-Complete authenticated inventory page sets preserve producer identities in any
-merge order, including metadata/file aliases. Malformed TOC diagnostics name the
-table index; original names remain available in the supplied artifact.
-Path failures use bounded escaped previews and report the original length;
-accepted paths and retained source names are not shortened.
+Các namespace package vẫn là khai báo metadata tại đường dẫn truy vấn dự kiến của chúng; chúng không chiếm một thư mục đích. `relative_offset` và `compressed_size` của chúng bảo toàn bất kỳ payload nào được khai báo bởi các trình tạo cũ hơn, trong khi `declared_size` bằng 0 vì không có bytecode nào được cụ thể hóa cho một namespace. Mọi phạm vi được khai báo phải kết thúc trước mục lục PYZ.
+Các hàng TOC CArchive bị sai định dạng xác định chỉ số bảng dựa trên 0 và độ lệch byte trong TOC, bao gồm header bị cắt cụt, tên không hợp lệ, cờ nén và mã loại. Lỗi giữ nguyên lý do định dạng gốc của nó.
+`compression_flag` của PYZ được rút ra từ lưu trữ: các payload không rỗng được nén, bao gồm cả các namespace cũ; một namespace rỗng không có payload nén.
 
-`compare_artifacts` compares these node-less records as declarations using the
-container, container name, source name and type code. Equal option or dependency
-declarations can therefore compare unchanged without implying that an external
-dependency's bytes were found. For materialized PyInstaller members, the same
-fields participate in the metadata delta independently of content identity;
-archive offsets and table positions remain location facts, not declaration
-identity. Missing declaration facts and unavailable non-metadata content remain
-unknown.
+Các mục CArchive loại `o` là các tùy chọn runtime. Chúng là các lần xuất hiện metadata, không có hiện vật nội dung hoặc tệp có thể giải nén. Đường dẫn truy vấn của chúng là `__pyinstaller__/runtime-options/<chỉ số bảng>`; văn bản tùy chọn là `format_metadata.source_name`. Các khai báo lặp lại giữ nguyên các định danh lần xuất hiện riêng biệt. Các đường dẫn này không chiếm tên hệ thống tệp đầu ra.
 
-Request `detail: "summary"` for a compact inspection, then query retained
-Evidence with `inspect_analysis_view`. An inventory view can select
-`collection: "occurrences"`, `entry_kinds: ["metadata"]`, exact logical paths or
-occurrence IDs, requested `fields`, and `offset`/`limit`. Filters intersect;
-identities, parent Evidence and coverage survive projection. Full inventory
-Evidence remains available for export. A compact reply reduces returned context;
-it still performs the complete member inventory and hashing work.
-Focused views add calls and tool-schema costs. A complete small inventory can
-cost less overall; prefer compact delivery when the full member graph would
-overwhelm the answer.
+Các mục loại `d` là các phần phụ thuộc đa gói (multipackage dependencies). Chúng cũng là metadata, dưới `__pyinstaller__/dependencies/<chỉ số bảng>`, và không bao giờ cụ thể hóa một tệp rỗng. Bộ đọc bảo toàn tham chiếu thô và tách dấu hai chấm đầu tiên của nó thành `dependency_archive` và `dependency_member`. `dependency_status` vẫn là `unresolved`, hoặc `invalid-reference` với các phần chưa xác định cho các tham chiếu bị lỗi. `external_dependency_count` tóm tắt các khai báo này. REA không mở một tệp thực thi khác hoặc tuyên bố nội dung của nó có sẵn. Một tệp thực với cùng đường dẫn logic như metadata vẫn có thể được giải nén độc lập.
+
+Cả hai loại khai báo đều yêu cầu payload rỗng và không nén. Đường dẫn truy vấn của chúng không tham gia vào việc kiểm tra va chạm hệ thống tệp, phả hệ thư mục hoặc tra cứu mục tiêu sourcemap; cha của chúng xác định vùng chứa khai báo.
+Các bộ trang kiểm kê được xác thực hoàn chỉnh bảo toàn định danh của trình tạo theo bất kỳ thứ tự hợp nhất nào, bao gồm cả bí danh metadata/tệp. Chẩn đoán TOC bị lỗi nêu tên chỉ số bảng; tên gốc vẫn có sẵn trong hiện vật được cung cấp.
+Lỗi đường dẫn sử dụng bản xem trước đã escape có giới hạn và báo cáo độ dài ban đầu; các đường dẫn được chấp nhận và tên nguồn được lưu giữ không bị rút ngắn.
+
+`compare_artifacts` so sánh các bản ghi không có node này như các khai báo bằng cách sử dụng container, tên container, tên nguồn và mã loại. Do đó, các khai báo tùy chọn hoặc phần phụ thuộc bằng nhau có thể so sánh không thay đổi mà không ngụ ý rằng các byte của phần phụ thuộc bên ngoài đã được tìm thấy. Đối với các thành viên PyInstaller đã cụ thể hóa, các trường tương tự tham gia vào delta metadata độc lập với danh tính nội dung; độ lệch kho lưu trữ và vị trí bảng vẫn là dữ kiện vị trí, không phải danh tính khai báo. Dữ kiện khai báo bị thiếu và nội dung không phải metadata không khả dụng vẫn là chưa xác định.
+
+Yêu cầu `detail: "summary"` để kiểm tra nhỏ gọn, sau đó truy vấn Bằng chứng được lưu giữ với `inspect_analysis_view`. Chế độ xem kiểm kê có thể chọn `collection: "occurrences"`, `entry_kinds: ["metadata"]`, các đường dẫn logic chính xác hoặc ID lần xuất hiện, các `fields` được yêu cầu, và `offset`/`limit`. Các bộ lọc giao nhau; danh tính, Bằng chứng cha và độ bao phủ tồn tại qua phép chiếu. Bằng chứng kiểm kê đầy đủ vẫn có sẵn để xuất. Phản hồi nhỏ gọn làm giảm ngữ cảnh trả về; nó vẫn thực hiện toàn bộ công việc kiểm kê và băm thành viên.
+Chế độ xem tập trung làm tăng các lệnh gọi và chi phí lược đồ công cụ. Một bản kiểm kê nhỏ đầy đủ có thể tốn ít chi phí tổng thể hơn; ưu tiên phân phối nhỏ gọn khi toàn bộ đồ thị thành viên quá lớn cho câu trả lời.
 
 ```bash
-rea inspect-artifact /absolute/path/hello --detail summary --evidence_output /absolute/new/evidence.json --json
-rea extract-artifact /absolute/path/hello --json
+rea inspect-artifact /duong/dan/tuyet/doi/hello --detail summary --evidence_output /duong/dan/moi/evidence.json --json
+rea extract-artifact /duong/dan/tuyet/doi/hello --json
 ```
 
-## Decoding and evidence limits
+## Giải mã và giới hạn bằng chứng (Decoding & Evidence Limits)
 
-Inventory hashes members individually through bounded streams. Stored PYZ
-images use descriptor ranges; outer-compressed images stream to private files,
-which the reader owns through cleanup and any cleanup retry. Extraction binds
-the selected carrier to its inventoried digest and checks source identity and
-state before and after reading. It does not retain expanded module bodies.
-Opaque outer-compressed images reuse that verified private image when opened,
-instead of inflating the carrier again. Direct source spans describe stored
-CArchive bytes; decompressed content has no direct span even when its encoded
-and decoded sizes coincide. Original offsets and compression remain metadata.
+Kiểm kê băm các thành viên riêng lẻ thông qua các luồng có giới hạn. Các ảnh PYZ được lưu trữ sử dụng các phạm vi mô tả; các ảnh nén bên ngoài truyền trực tiếp tới các tệp riêng tư, mà bộ đọc sở hữu thông qua quá trình dọn dẹp và mọi lần thử dọn dẹp lại. Việc giải nén ràng buộc vật mang đã chọn với mã băm đã kiểm kê của nó và kiểm tra trạng thái và danh tính nguồn trước và sau khi đọc. Nó không lưu giữ các phần thân mô-đun đã mở rộng.
+Các ảnh nén bên ngoài mờ đục tái sử dụng ảnh riêng tư đã xác minh đó khi mở, thay vì giải nén lại vật mang. Các khoảng nguồn trực tiếp mô tả các byte CArchive được lưu trữ; nội dung đã giải nén không có khoảng trực tiếp ngay cả khi kích thước mã hóa và giải mã của nó trùng nhau. Độ lệch ban đầu và nén vẫn là metadata.
 
-Only the PYZ header and marshal directory are loaded for listing. PYZ tables
-have a 16 MiB budget; CArchive tables have a 32 MiB budget. Parsed facts have a
-32 MiB serialized budget. Projected entries share a 64 MiB retained budget,
-including metadata, bookkeeping and conservative reservations for namespace
-objects and possible case-collision annotations at each path component. These
-reservations happen before normalization or trie allocation.
-Outer-compressed PYZ images have a separate per-reader capacity of 128 private
-files, bounding retained inodes and image identities. The complete image count
-is admitted before any temporary file is created; excess images return a
-capacity failure. This is a resource policy, not a PyInstaller format limit.
-Artifact errors retain this distinction as `details.boundary: "capacity"`, with
-the actual allowance in the diagnosis and `details.detail`. Changing output
-detail does not reduce that allowance's input scope; these operations do not
-select a narrower member path during inventory.
-Only a zero-byte read establishes EOF; short successful descriptor reads fill
-the bounded range. Compressed members must consume their complete declared
-input span; trailing junk and concatenated streams are refused.
-Plaintext expansion has an aggregate archive-derived budget. Exceeding a budget
-returns a resource failure.
+Chỉ header PYZ và thư mục marshal được nạp để liệt kê. Bảng PYZ có ngân sách 16 MiB; bảng CArchive có ngân sách 32 MiB. Dữ kiện đã phân tích cú pháp có ngân sách tuần tự hóa 32 MiB. Các mục dự kiến chia sẻ ngân sách lưu giữ 64 MiB, bao gồm metadata, sổ sách kế toán và các khoản dự trữ thận trọng cho các đối tượng namespace và các chú thích va chạm chữ hoa chữ thường có thể có tại mỗi thành phần đường dẫn. Các khoản dự trữ này diễn ra trước khi chuẩn hóa hoặc phân bổ cây trie.
+Các ảnh PYZ nén bên ngoài có dung lượng riêng cho mỗi bộ đọc là 128 tệp riêng tư, giới hạn các inode và danh tính ảnh được lưu giữ. Toàn bộ số lượng ảnh được tiếp nhận trước khi bất kỳ tệp tạm thời nào được tạo; các ảnh vượt mức sẽ trả về lỗi dung lượng. Đây là chính sách tài nguyên, không phải giới hạn định dạng PyInstaller.
+Lỗi hiện vật giữ lại sự phân biệt này dưới dạng `details.boundary: "capacity"`, với mức cho phép thực tế trong phần chẩn đoán và `details.detail`. Việc thay đổi chi tiết đầu ra không làm giảm phạm vi đầu vào của mức cho phép đó; các thao tác này không chọn đường dẫn thành viên hẹp hơn trong quá trình kiểm kê.
+Chỉ một lần đọc 0 byte mới xác lập EOF; các lần đọc mô tả thành công ngắn sẽ lấp đầy phạm vi giới hạn. Các thành viên bị nén phải tiêu thụ toàn bộ khoảng đầu vào đã khai báo của chúng; dữ liệu rác phía sau và các luồng nối tiếp bị từ chối.
+Mở rộng văn bản thuần có ngân sách tổng hợp bắt nguồn từ kho lưu trữ. Vượt quá ngân sách sẽ trả về lỗi tài nguyên.
 
-Supported final Python bytecode magic values cover Python 3.7 through 3.14.
-Supported marshal directory values are lists, tuples, strings, integers and
-bytes, including interned Unicode strings used for module names. Unicode strings
-use CPython's UTF-8 `surrogatepass` encoding, preserving lone surrogate code
-points in decoded module names. Directory values follow the identified CPython marshal semantics; for
-example, a long integer with a zero most-significant digit is malformed and is
-not normalized into a valid table value. An unsupported magic or malformed or
-unsupported directory stays an opaque member with a limitation and
-`pyz_status: "opaque"`; no child entries from that table are projected, and
-their module contents remain unknown. The original PYZ member and its digest
-remain available independently. Healthy CArchive siblings are still inventoried.
-Any opaque PYZ makes producer traversal coverage unknown, including retained
-summaries and exhausted queries. Per-archive reasons remain on the opaque
-occurrences; the coverage observation summarizes their count without repeating
-every limitation. An empty result does not establish module absence.
-Observed `pyz_python_magic` bytes remain available even when their Python version
-is unknown.
-The directory declares compressed module lengths, so uncompressed declared
-sizes and source spans inside decoded data remain unknown.
+Các giá trị magic bytecode Python cuối cùng được hỗ trợ bao gồm Python 3.7 đến 3.14. Các giá trị thư mục marshal được hỗ trợ là danh sách, tuple, chuỗi, số nguyên và byte, bao gồm các chuỗi Unicode nội trú được sử dụng cho tên mô-đun. Chuỗi Unicode sử dụng mã hóa `surrogatepass` UTF-8 của CPython, bảo toàn các điểm mã surrogate đơn lẻ trong tên mô-đun đã giải mã. Giá trị thư mục tuân theo ngữ nghĩa marshal CPython đã được xác định; ví dụ: một số nguyên dài có chữ số có nghĩa lớn nhất bằng 0 là sai định dạng và không được chuẩn hóa thành giá trị bảng hợp lệ. Một magic không được hỗ trợ hoặc thư mục sai định dạng hoặc không được hỗ trợ vẫn là một thành viên mờ đục với một giới hạn và `pyz_status: "opaque"`; không có mục con nào từ bảng đó được chiếu và nội dung mô-đun của chúng vẫn chưa được biết. Thành viên PYZ gốc và mã băm của nó vẫn khả dụng độc lập. Các thành viên CArchive cùng cấp khỏe mạnh vẫn được kiểm kê.
+Bất kỳ PYZ mờ đục nào cũng làm cho độ bao phủ duyệt của trình tạo trở nên không xác định, bao gồm cả các bản tóm tắt được lưu giữ và các truy vấn đã duyệt hết. Lý do cho từng kho lưu trữ vẫn nằm trên các lần xuất hiện mờ đục; quan sát độ bao phủ tóm tắt số lượng của chúng mà không lặp lại mọi giới hạn. Một kết quả rỗng không chứng minh sự vắng mặt của mô-đun. Các byte `pyz_python_magic` quan sát được vẫn khả dụng ngay cả khi phiên bản Python của chúng chưa được biết.
+Thư mục khai báo độ dài mô-đun được nén, do đó kích thước đã khai báo chưa nén và các khoảng nguồn bên trong dữ liệu đã giải mã vẫn chưa được biết.
 
-PYZ modules receive a derived 16-byte `.pyc` header from their own supported
-magic. CArchive scripts receive that header only when every sibling PYZ magic
-and the cookie's Python version agree. Under the same agreement, CArchive
-modules (`m`/`M`) receive a header only when their decompressed prefix identifies
-headerless marshal code. Legacy modules that retain a `.pyc` header, and modules
-whose prefix is unrecognized, preserve their original bytes and report
-`bytecode_header: "unknown"`. A header prefix does not establish that the entire
-file is valid. `bytecode_magic` and graph derivation edges identify synthesized
-headers; member digests cover the resulting derived files. These headers do not
-establish successful execution or decompilation.
+Các mô-đun PYZ nhận được header `.pyc` 16 byte suy dẫn từ magic được hỗ trợ của chính chúng. Các script CArchive chỉ nhận header đó khi mọi magic PYZ cùng cấp và phiên bản Python của cookie đồng thuận. Dưới cùng sự đồng thuận đó, các mô-đun CArchive (`m`/`M`) chỉ nhận được header khi tiền tố đã giải nén của chúng xác định mã marshal không có header. Các mô-đun cũ vẫn giữ header `.pyc` và các mô-đun có tiền tố không nhận dạng được sẽ giữ nguyên các byte ban đầu của chúng và báo cáo `bytecode_header: "unknown"`. Tiền tố header không chứng minh rằng toàn bộ tệp là hợp lệ. `bytecode_magic` và các cạnh suy dẫn đồ thị xác định các header được tổng hợp; mã băm thành viên bao phủ các tệp suy dẫn kết quả. Các header này không xác lập việc thực thi hoặc dịch ngược thành công.
 
-The nonempty CArchive Python module `pyimod00_crypto_key` (`m`/`M`) is recorded
-as an encryption marker; a same-named data file or script is not. Affected
-PYZ blobs are reported without decoding; extraction refuses encrypted entries.
-The raw PYZ container remains readable and hashable, including when its module
-table is opaque. Its marker stays in metadata and opaque child coverage stays
-unknown; extracting the container does not decrypt its payloads.
-The marker also applies to nonempty legacy namespace payloads. Empty namespaces
-have no payload to encrypt and retain a null encryption source.
+Mô-đun Python CArchive không rỗng `pyimod00_crypto_key` (`m`/`M`) được ghi lại dưới dạng dấu hiệu mã hóa; một tệp dữ liệu hoặc script cùng tên thì không. Các blob PYZ bị ảnh hưởng được báo cáo mà không giải mã; việc giải nén sẽ từ chối các mục bị mã hóa. Vùng chứa PYZ thô vẫn có thể đọc và băm được, kể cả khi bảng mô-đun của nó mờ đục. Dấu hiệu của nó vẫn nằm trong metadata và độ bao phủ con mờ đục vẫn chưa xác định; việc giải nén vùng chứa không giải mã payload của nó. Dấu hiệu cũng áp dụng cho các payload namespace cũ không rỗng. Namespace rỗng không có payload để mã hóa và giữ lại nguồn mã hóa null.
 
-Detection searches the last 16 MiB for a cookie, allowing a trailing macOS code
-signature within that bound. Member offsets are relative to the archive start:
-cookie position plus cookie size minus package length. Native bootloader
-analysis remains available through the native tools.
+Phát hiện tìm kiếm trong 16 MiB cuối cùng để tìm cookie, cho phép chữ ký mã macOS phía sau nằm trong giới hạn đó. Độ lệch thành viên tương đối so với phần đầu kho lưu trữ: vị trí cookie cộng kích thước cookie trừ độ dài gói. Phân tích bootloader native vẫn khả dụng thông qua các công cụ native.

@@ -1,17 +1,12 @@
-# ELF note tables
+# Bảng ghi chú ELF (ELF Note Tables)
 
-`inspect_elf_notes` / `inspect-elf-notes` answers whether one selected local
-ELF32/ELF64 image declares `PT_NOTE` program headers or `SHT_NOTE` sections,
-which note owners and types those tables store, and which GNU build-id or
-ABI-tag fields those notes carry. It reads the file without executing it and
-does not require a disassembler, debug package, or package catalog.
+`inspect_elf_notes` / `inspect-elf-notes` trả lời câu hỏi liệu một tệp ảnh ELF32/ELF64 cục bộ đã chọn có khai báo program header `PT_NOTE` hoặc section `SHT_NOTE` hay không, chủ sở hữu và loại ghi chú nào được lưu trữ trong các bảng đó, và những trường GNU build-id hoặc ABI-tag nào mà các ghi chú đó mang theo. Nó đọc tệp mà không cần thực thi và không yêu cầu bộ tháo mã, gói debug hay catalog gói.
 
 ```bash
-rea inspect-elf-notes /absolute/path/to/program --json
+rea inspect-elf-notes /duong/dan/tuyet/doi/toi/program --json
 ```
 
-The CLI resolves relative paths against the caller's working directory. MCP
-requires an absolute filesystem path and preserves that exact selection:
+CLI phân giải các đường dẫn tương đối dựa trên thư mục làm việc của bên gọi. MCP yêu cầu đường dẫn hệ thống tệp tuyệt đối và bảo toàn lựa chọn chính xác đó:
 
 ```json
 {
@@ -20,59 +15,24 @@ requires an absolute filesystem path and preserves that exact selection:
 }
 ```
 
-## Observations
+## Quan sát (Observations)
 
-The inline Evidence result contains the artifact path, SHA-256, and byte length.
-`tables` lists each declared note program header or section, including the
-section name when a string table is present. Zlib- and Zstandard-compressed
-section-name tables are decompressed within the selected file-size budget. An unsupported
-compression type leaves section names unknown and adds a limitation; note bytes
-remain independently examined. Each `entries[]` item reports owner, type,
-descriptor SHA-256, and a hex preview for descriptors of 64 bytes or less.
+Kết quả Bằng chứng (Evidence) nội tuyến chứa đường dẫn hiện vật, SHA-256 và độ dài byte. `tables` liệt kê từng program header hoặc section ghi chú đã khai báo, bao gồm cả tên section khi có bảng chuỗi (string table). Bảng tên section được nén bằng Zlib và Zstandard được giải nén trong ngân sách kích thước tệp đã chọn. Một loại nén không được hỗ trợ sẽ khiến tên section không xác định và thêm một giới hạn; các byte ghi chú vẫn được kiểm tra độc lập. Mỗi mục trong `entries[]` báo cáo chủ sở hữu, loại, SHA-256 của bộ mô tả và bản xem trước dạng hex cho các bộ mô tả từ 64 byte trở xuống.
 
-A section name also stays null when its offset is outside the declared string
-table or its bytes lack a NUL terminator. A limitation explains that missing
-name. Note coverage remains complete when all declared note tables and entries
-were examined; an unavailable section name does not erase those note facts.
+Tên section cũng giữ là null khi độ lệch của nó nằm ngoài bảng chuỗi đã khai báo hoặc các byte của nó thiếu ký tự kết thúc NUL. Một giới hạn giải thích cho tên bị thiếu đó. Độ bao phủ ghi chú vẫn hoàn chỉnh khi tất cả bảng ghi chú và mục đã khai báo đều được kiểm tra; một tên section không khả dụng không xóa đi những dữ kiện ghi chú đó.
 
-For GNU notes, `gnu.build_id_hex`, `gnu.abi_tag`, or `gnu.gold_version` are
-filled when the descriptor matches that type. Other owners keep `gnu` null.
+Đối với các ghi chú GNU, `gnu.build_id_hex`, `gnu.abi_tag`, hoặc `gnu.gold_version` được điền khi bộ mô tả khớp với loại đó. Các chủ sở hữu khác giữ `gnu` là null.
 
-`PT_NOTE` and `SHT_NOTE` are examined independently. The same file range may
-appear twice when both tables declare it.
+`PT_NOTE` và `SHT_NOTE` được kiểm tra độc lập. Cùng một phạm vi tệp có thể xuất hiện hai lần khi cả hai bảng đều khai báo nó.
 
-A missing table list is observed absence of those declarations. It is not proof
-the image never carried notes in another container or overlay.
+Danh sách bảng bị thiếu là sự vắng mặt quan sát được của các khai báo đó. Đó không phải là bằng chứng tệp ảnh không bao giờ mang ghi chú trong một container khác hoặc overlay.
 
-## Limits and failures
+## Giới hạn và lỗi (Limits & Failures)
 
-The selected file is limited to 64 MiB by default (512 MiB maximum). At most
-32 note entries are examined by default across every table. Retained note
-names, section names, and GNU descriptor text share a scan budget based on
-the source bytes plus any decoded section-name table, capped at
-`max_file_bytes`. The raw source and decoded table must also fit together
-within that ceiling. If admission fails, the error reports the required
-`max_file_bytes`; raising it can admit the decoded table up to the operation's
-512 MiB maximum. Once admitted, raising that setting does not increase the
-scan budget for the same source and decoded names. Repeated table ranges count again. Each descriptor range is hashed once,
-and each GNU version's trailing NUL run is scanned once; neither walk may
-exceed that byte ceiling. Malformed ELF headers, truncated header
-tables, declared note tables that extend past the file, and truncated
-note entries fail without partial success. ELF extended
-numbering (`PN_XNUM`, including a section count stored when `e_shnum` is 0) is
-unsupported and returns an unsupported-target outcome rather than invalid-input
-recovery.
+Tệp được chọn được giới hạn ở 64 MiB theo mặc định (tối đa 512 MiB). Tối đa 32 mục ghi chú được kiểm tra theo mặc định trên mọi bảng. Tên ghi chú, tên section và văn bản bộ mô tả GNU được lưu giữ chia sẻ một ngân sách quét dựa trên các byte nguồn cộng với bất kỳ bảng tên section đã giải mã nào, được giới hạn ở `max_file_bytes`. Nguồn thô và bảng đã giải mã cũng phải cùng khớp trong mức trần đó. Nếu việc tiếp nhận thất bại, lỗi sẽ báo cáo `max_file_bytes` bắt buộc; việc nâng mức này lên có thể tiếp nhận bảng đã giải mã lên đến mức tối đa 512 MiB của thao tác. Sau khi được tiếp nhận, việc nâng cài đặt đó không làm tăng ngân sách quét cho cùng tên nguồn và tên đã giải mã. Phạm vi bảng lặp lại được tính lại. Mỗi phạm vi bộ mô tả được băm một lần, và chuỗi NUL phía sau của mỗi phiên bản GNU được quét một lần; không có lần duyệt nào được vượt quá mức trần byte đó. Header ELF bị lỗi, bảng header bị cắt cụt, bảng ghi chú đã khai báo mở rộng vượt quá tệp và các mục ghi chú bị cắt cụt sẽ thất bại mà không có thành công một phần. Đánh số mở rộng ELF (`PN_XNUM`, bao gồm số lượng section được lưu trữ khi `e_shnum` bằng 0) không được hỗ trợ và trả về kết quả mục tiêu không được hỗ trợ thay vì khôi phục đầu vào không hợp lệ.
 
-Zstandard section-name tables also use a 128 MiB decoder window limit.
+Bảng tên section Zstandard cũng sử dụng giới hạn cửa sổ giải mã 128 MiB.
 
-`SHF_COMPRESSED` note sections return `unsupported_target` before their payload
-is interpreted or decompressed. Their compression header is storage metadata,
-not a note header. The current result requires physical file offsets for each
-note and descriptor, which decoded compressed notes cannot provide. This refusal
-does not label compressed note storage as malformed or allocate its declared
-decoded size. Compressed section-name tables remain supported within the limits
-above. Inspect a separately decompressed copy when these notes are needed,
-retaining the original artifact for provenance.
+Section ghi chú `SHF_COMPRESSED` trả về `unsupported_target` trước khi payload của chúng được diễn giải hoặc giải nén. Header nén của chúng là metadata lưu trữ, không phải header ghi chú. Kết quả hiện tại yêu cầu độ lệch tệp vật lý cho từng ghi chú và bộ mô tả, điều mà các ghi chú nén đã giải mã không thể cung cấp. Sự từ chối này không gắn nhãn bộ lưu trữ ghi chú nén là sai định dạng hoặc cấp phát kích thước giải mã đã khai báo của nó. Bảng tên section được nén vẫn được hỗ trợ trong các giới hạn ở trên. Hãy kiểm tra một bản sao được giải nén riêng biệt khi cần các ghi chú này, giữ lại hiện vật ban đầu để phục vụ việc xác định xuất xứ.
 
-This workflow does not execute the image or verify GNU build-id uniqueness
-against package catalogs.
+Quy trình làm việc này không thực thi tệp ảnh hoặc xác minh tính duy nhất của GNU build-id dựa trên các catalog gói.

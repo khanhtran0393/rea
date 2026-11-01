@@ -1,35 +1,20 @@
-# REA roadmap
+# Lộ trình phát triển REA (REA Roadmap)
 
-The [platform tracker](https://github.com/morluto/rea/issues/32),
-[process/Hopper tracker](https://github.com/morluto/rea/issues/48), and
-[browser tracker](https://github.com/morluto/rea/issues/39) track capability and
-verification work. Available tools and setup are documented in the
-[investigation guides](https://rea.tools/guides/),
-[installation guide](installation.md), and
-[generated catalog](mcp-contracts.md#generated-catalog).
+[Trình theo dõi nền tảng](https://github.com/khanhtran0393/rea/issues/32), [trình theo dõi tiến trình/Hopper](https://github.com/khanhtran0393/rea/issues/48), và [trình theo dõi trình duyệt](https://github.com/khanhtran0393/rea/issues/39) theo dõi năng lực và công tác xác minh. Các công cụ và thiết lập có sẵn được ghi chép trong [hướng dẫn điều tra](https://rea.tools/guides/), [hướng dẫn cài đặt](installation.md), và [danh mục được tạo tự động](mcp-contracts.md#generated-catalog).
 
-## Priorities
+## Các ưu tiên (Priorities)
 
-- Expand native architecture, type, and indirect-call verification.
-- Connect static findings and runtime observations across application layers.
-- Improve obfuscated managed-code comparisons and verified native links.
-- Extend process, protocol, filesystem, reconnect, and build-comparison coverage.
-- Evaluate additional providers and targets when an analyst workflow demonstrates
-  a capability gap.
+- Mở rộng xác minh kiến trúc native, kiểu dữ liệu và lệnh gọi gián tiếp (indirect-call).
+- Kết nối các phát hiện tĩnh và quan sát thời gian chạy trên các tầng ứng dụng.
+- Cải thiện so sánh mã được quản lý (managed-code) bị xáo trộn và các liên kết native đã xác minh.
+- Mở rộng độ bao phủ tiến trình, giao thức, hệ thống tệp, kết nối lại và so sánh bản dựng.
+- Đánh giá các provider và mục tiêu bổ sung khi quy trình làm việc của chuyên viên phân tích chứng minh có khoảng trống năng lực.
 
-## Admission criteria
+## Tiêu chí tiếp nhận (Admission Criteria)
 
-New capabilities must return useful evidence through shared CLI/MCP workflows,
-preserve observations and unknowns, and declare actual authority and lifecycle
-constraints. Agents compose experiments using ordinary commands, scripts, and
-fixture servers; custom orchestration needs a demonstrated requirement.
+Năng lực mới phải trả về Bằng chứng (Evidence) hữu ích thông qua quy trình làm việc CLI/MCP dùng chung, bảo toàn các quan sát và điểm chưa xác định, đồng thời khai báo thẩm quyền thực tế và các ràng buộc vòng đời. Các tác tử kết hợp các thử nghiệm bằng các lệnh, script và fixture server thông thường; việc điều phối tùy chỉnh cần có yêu cầu được chứng minh.
 
-Provider and platform claims require their corresponding
-[real verification lanes](testing.md#real-toolchain-verification-lanes).
-See [tool design](tool-design.md) for choosing a tool boundary and
-[Ghidra semantics](ghidra-provider.md) for the existing deep-provider contract.
+Các tuyên bố về provider và nền tảng yêu cầu [luồng xác minh chuỗi công cụ thực tế](testing.md#real-toolchain-verification-lanes) tương ứng.
+Xem [thiết kế công cụ](tool-design.md) để chọn ranh giới công cụ và [ngữ nghĩa Ghidra](ghidra-provider.md) cho hợp đồng provider chuyên sâu hiện có.
 
-Setup remains additive, reuses existing tools, and requires approval for disclosed
-configuration and Hopper installation changes. Additional installer choices need
-an implemented toolchain and explicit scope; setup does not install or upgrade
-unrelated runtimes or dependencies.
+Thiết lập vẫn mang tính bổ sung, tái sử dụng các công cụ hiện có và yêu cầu phê duyệt đối với các thay đổi cài đặt Hopper và cấu hình được tiết lộ. Các lựa chọn trình cài đặt bổ sung cần một chuỗi công cụ được triển khai và phạm vi rõ ràng; quá trình thiết lập không tự cài đặt hoặc nâng cấp các runtime hoặc các phần phụ thuộc không liên quan.

@@ -1,17 +1,12 @@
-# CPython pyc inspection
+# Kiểm tra tệp CPython pyc (CPython pyc Inspection)
 
-`inspect_python_pyc` / `inspect-python-pyc` reports the supported CPython format
-and version declared by one selected local `.pyc` file's magic, how its 16-byte
-header records source identity, and which nested code objects its decoded
-marshal graph contains. It reads the file without running bytecode and requires
-no Python installation, active binary target, Hopper, Ghidra, or IDA.
+`inspect_python_pyc` / `inspect-python-pyc` báo cáo định dạng và phiên bản CPython được hỗ trợ do magic của một tệp `.pyc` cục bộ đã chọn khai báo, cách header 16 byte của nó ghi lại danh tính nguồn và những đối tượng mã lồng nhau nào mà đồ thị marshal đã giải mã của nó chứa. Nó đọc tệp mà không cần chạy bytecode và không yêu cầu cài đặt Python, mục tiêu nhị phân đang hoạt động, Hopper, Ghidra hay IDA.
 
 ```bash
-rea inspect-python-pyc /absolute/path/to/module.pyc --json
+rea inspect-python-pyc /duong/dan/tuyet/doi/toi/module.pyc --json
 ```
 
-The CLI resolves relative paths against the caller's working directory. MCP
-requires an absolute filesystem path and preserves that exact selection:
+CLI phân giải các đường dẫn tương đối dựa trên thư mục làm việc của bên gọi. MCP yêu cầu đường dẫn hệ thống tệp tuyệt đối và bảo toàn lựa chọn chính xác đó:
 
 ```json
 {
@@ -20,13 +15,9 @@ requires an absolute filesystem path and preserves that exact selection:
 }
 ```
 
-## Selected code objects
+## Các đối tượng mã đã chọn (Selected Code Objects)
 
-Complete output remains the default. To read selected code objects from a large
-report, request MCP `detail: "summary"`. The summary contains artifact/header
-identity, source coverage and a limitation count; its
-`normalized_result.parent_evidence_id` identifies the complete retained report.
-Use that parent ID with `inspect_analysis_view` and:
+Đầu ra hoàn chỉnh vẫn là mặc định. Để đọc các đối tượng mã đã chọn từ một báo cáo lớn, hãy yêu cầu MCP `detail: "summary"`. Bản tóm tắt chứa danh tính hiện vật/header, độ bao phủ nguồn và số lượng giới hạn; `normalized_result.parent_evidence_id` của nó xác định báo cáo hoàn chỉnh được lưu giữ. Sử dụng ID cha đó với `inspect_analysis_view` và:
 
 ```json
 {
@@ -46,144 +37,42 @@ Use that parent ID with `inspect_analysis_view` and:
 }
 ```
 
-This is the request's `view` field. To receive these selected facts in the first
-call, include the same `view` directly in `inspect_python_pyc` alongside
-`detail: "summary"`. Later pages use the returned parent ID with
-`inspect_analysis_view`. `view` requires summary delivery; complete delivery
-rejects a view instead of ignoring it. `names` matches retained display strings and
-returns every same-name object. `indices` selects original `code_objects`
-indexes; combining names and indices intersects those selectors. Omitted
-selectors include all rows, while `[]` selects none. Each row always includes
-`source_index`, scoped to its parent Evidence; `fields: []` returns only that
-index. Filtering preserves source order, and paging counts matching rows.
-The view's `pyc.coverage` preserves source coverage independently of page
-coverage. Views preserve `nested_code` indexes and their code-constant semantics.
+Đây là trường `view` của yêu cầu. Để nhận các dữ kiện đã chọn này trong lệnh gọi đầu tiên, hãy đưa trực tiếp cùng một `view` vào `inspect_python_pyc` cùng với `detail: "summary"`. Các trang sau sử dụng ID cha được trả về với `inspect_analysis_view`. `view` yêu cầu phân phối tóm tắt; phân phối hoàn chỉnh từ chối một view thay vì bỏ qua nó. `names` khớp với các chuỗi hiển thị được lưu giữ và trả về mọi đối tượng có cùng tên. `indices` chọn các chỉ mục `code_objects` ban đầu; việc kết hợp names và indices sẽ giao cắt các bộ chọn đó. Bộ chọn bị bỏ qua bao gồm tất cả các hàng, trong khi `[]` không chọn hàng nào. Mỗi hàng luôn bao gồm `source_index`, được giới hạn phạm vi theo Bằng chứng cha của nó; `fields: []` chỉ trả về chỉ mục đó. Lọc bảo toàn thứ tự nguồn và phân trang đếm các hàng khớp. `pyc.coverage` của view bảo toàn độ bao phủ nguồn độc lập với độ bao phủ trang. Các view bảo toàn chỉ mục `nested_code` và ngữ nghĩa hằng số mã của chúng.
 
-CLI summary delivery requires a durable destination for the complete Evidence:
+Phân phối tóm tắt CLI yêu cầu một đích bền vững cho Bằng chứng hoàn chỉnh:
 
 ```bash
 rea inspect-python-pyc module.pyc --detail summary --evidence_output module.evidence.json --json
 ```
 
-Add `--view '{"kind":"python-pyc","collection":"code_objects","names":["parse_args"],"fields":["name","bytecode"]}'`
-to select facts in that initial CLI call.
+Thêm `--view '{"kind":"python-pyc","collection":"code_objects","names":["parse_args"],"fields":["name","bytecode"]}'` để chọn các dữ kiện trong lệnh gọi CLI ban đầu đó.
 
-The output's `summary` is derived Evidence. Pass its parent ID and the saved
-bundle to `inspect-analysis-view --evidence-bundle module.evidence.json` for
-offline queries. MCP views read retained Evidence, and offline views read the
-bundle; neither requires the original pyc to remain present. Parse budgets and
-complete-source retention still apply to summary delivery.
+`summary` của đầu ra là Bằng chứng suy dẫn. Truyền ID cha của nó và gói đã lưu vào `inspect-analysis-view --evidence-bundle module.evidence.json` cho các truy vấn ngoại tuyến. Các view MCP đọc Bằng chứng được lưu giữ và các view ngoại tuyến đọc gói; cả hai đều không yêu cầu tệp pyc gốc phải còn tồn tại. Ngân sách phân tích cú pháp và việc lưu giữ toàn bộ nguồn vẫn áp dụng cho phân phối tóm tắt.
 
-## Observations
+## Quan sát (Observations)
 
-The inline Evidence result contains the artifact path, SHA-256, and byte length.
-`header` contains:
+Kết quả Bằng chứng (Evidence) nội tuyến chứa đường dẫn hiện vật, SHA-256 và độ dài byte. `header` chứa:
 
-- `magic`, the 16-bit little-endian field;
-- `python_version` and `code_layout`, mapped from the pinned CPython 3.7–3.13
-  table (`py37`, `py38`, or `py311`); 3.11 alpha magics before 3494 used
-  other code layouts and are unsupported. The 3.7.0a1/a2 magics 3390/3391
-  used 12-byte headers and are outside this reader's supported format;
-- `flags`, `hash_based`, and `check_source` from PEP 552;
-- `source_hash_hex` for hash-based pycs, or `source_mtime` and `source_size`
-  for timestamp pycs.
+- `magic`, trường 16-bit little-endian;
+- `python_version` và `code_layout`, được ánh xạ từ bảng cố định CPython 3.7–3.13 (`py37`, `py38`, hoặc `py311`); magic 3.11 alpha trước 3494 sử dụng các bố cục mã khác và không được hỗ trợ. Magic 3.7.0a1/a2 3390/3391 sử dụng header 12 byte và nằm ngoài định dạng được hỗ trợ của bộ đọc này;
+- `flags`, `hash_based`, và `check_source` từ PEP 552;
+- `source_hash_hex` cho các tệp pyc dựa trên hash, hoặc `source_mtime` và `source_size` cho các tệp pyc dựa trên timestamp.
 
-`code_objects` lists each code object reachable in the decoded marshal graph
-once, the top-level module code first. This follows CPython container behavior;
-it is not an inventory of raw serialized code-object records. `nested_code`
-holds the indexes of the distinct code objects reachable from that object's
-constants, including code nested in tuples and other containers and the owner
-itself when a constant container reaches it.
-A function shared through a marshal reference is named by index once per owner,
-even when that owner reaches it again through the same container. Relationships
-are collected after the marshal graph is complete, so a container that a nested
-code object also references is not summarized while its items are still missing.
-Each object reports name, optional qualname,
-filename, the signed 32-bit `co_firstlineno` value, argument counts, flags,
-names, locals (or `localsplusnames` on 3.11+), const
-summaries, and bytecode length plus SHA-256.
+`code_objects` liệt kê từng đối tượng mã có thể tiếp cận được trong đồ thị marshal đã giải mã một lần, mã mô-đun cấp cao nhất trước tiên. Điều này tuân theo hành vi vùng chứa của CPython; nó không phải là một kho kiểm kê các bản ghi đối tượng mã được tuần tự hóa thô. `nested_code` chứa các chỉ mục của các đối tượng mã riêng biệt có thể tiếp cận được từ các hằng số của đối tượng đó, bao gồm mã lồng trong tuple và các vùng chứa khác và chính chủ sở hữu khi một vùng chứa hằng số tiếp cận nó.
+Một hàm được chia sẻ thông qua tham chiếu marshal được đặt tên theo chỉ mục một lần cho mỗi chủ sở hữu, ngay cả khi chủ sở hữu đó tiếp cận lại nó thông qua cùng một vùng chứa. Các mối quan hệ được thu thập sau khi đồ thị marshal hoàn tất, do đó một vùng chứa mà một đối tượng mã lồng nhau cũng tham chiếu đến sẽ không được tóm tắt trong khi các mục của nó vẫn còn thiếu. Mỗi đối tượng báo cáo tên, qualname tùy chọn, tên tệp, giá trị `co_firstlineno` 32-bit có dấu, số lượng đối số, cờ, tên biến, biến cục bộ (hoặc `localsplusnames` trên 3.11+), tóm tắt hằng số (const summaries), và độ dài bytecode cộng với SHA-256.
 
-Code-object equality used by sets and dictionaries follows the selected CPython format:
-3.7–3.10 derive `CO_NOFREE` from the free/cell tables for equality, while
-3.11+ compare raw flags; raw `co_flags` remain in reported facts. The older
-layouts ignore line tables, while 3.11+ include line and exception tables and
-skip inline-cache code units according to the cache table for the exact magic.
-Reported bytecode length and SHA-256 still describe the original code bytes.
-This does not emulate CPython's deoptimization of specialized or instrumented
-opcode bytes in handcrafted pyc files.
-The artifact SHA-256 identifies the exact selected `.pyc` bytes independently
-of this decoded object graph. Reference slots follow each tag's CPython behavior:
-singleton values and `TYPE_REF` do not reserve new slots even when their tag
-has `FLAG_REF` set.
+Sự bằng nhau của đối tượng mã được sử dụng bởi các tập hợp và từ điển tuân theo định dạng CPython đã chọn: 3.7–3.10 suy dẫn `CO_NOFREE` từ bảng free/cell để so sánh bằng nhau, trong khi 3.11+ so sánh các cờ thô; `co_flags` thô vẫn nằm trong các dữ kiện được báo cáo. Các bố cục cũ hơn bỏ qua bảng dòng, trong khi 3.11+ bao gồm bảng dòng và ngoại lệ và bỏ qua các đơn vị mã inline-cache theo bảng cache cho magic chính xác. Độ dài bytecode và SHA-256 được báo cáo vẫn mô tả các byte mã ban đầu. Điều này không mô phỏng quá trình deoptimization của CPython đối với các byte opcode chuyên biệt hoặc được can thiệp (instrumented) trong các tệp pyc được tạo thủ công.
+Mã băm SHA-256 của hiện vật xác định chính xác các byte `.pyc` đã chọn độc lập với đồ thị đối tượng đã giải mã này. Các vị trí tham chiếu tuân theo hành vi CPython của từng thẻ: các giá trị singleton và `TYPE_REF` không bảo lưu các vị trí mới ngay cả khi thẻ của chúng có đặt `FLAG_REF`.
 
-Reported names are JavaScript display strings; distinct CPython Unicode names
-can therefore have the same displayed value and cannot always be reconstructed
-from that field alone. Code equality uses the retained marshal string bytes,
-while the artifact SHA-256 continues to identify the original file bytes.
+Tên được báo cáo là chuỗi hiển thị JavaScript; các tên Unicode CPython riêng biệt do đó có thể có cùng giá trị hiển thị và không phải lúc nào cũng có thể được tái tạo từ trường đó một mình. Tính bằng nhau của mã sử dụng các byte chuỗi marshal được lưu giữ, trong khi SHA-256 của hiện vật tiếp tục xác định các byte tệp gốc.
 
-Bytecode is not decompiled. Const strings may be truncated in the summary while
-the marshal walk still consumed the original bytes; a string summary's `bytes`
-is that marshal length. Integer consts report `bits`; their decimal `value` is
-`null` above 256 bits. Non-finite float and complex parts use CPython's `inf`,
-`-inf`, and `nan` spellings; negative zero uses `"-0.0"` so JSON preserves its
-sign. String previews preserve source lone surrogates but never split a valid
-surrogate pair at the preview boundary. Dictionary and set lengths follow CPython:
-unhashable keys and members fail the walk, equal set members count once, equal
-dictionary keys keep the first key object and replace only its value, code
-objects are valid keys and members only when all of their consts are hashable,
-and a null dictionary value ends the dict without that entry.
+Bytecode không được dịch ngược. Các chuỗi hằng số có thể bị cắt bớt trong bản tóm tắt trong khi lần duyệt marshal vẫn tiêu thụ các byte ban đầu; `bytes` của tóm tắt chuỗi là độ dài marshal đó. Hằng số số nguyên báo cáo `bits`; `value` thập phân của chúng là `null` trên 256 bit. Các phần thực và ảo không hữu hạn sử dụng cách viết `inf`, `-inf`, và `nan` của CPython; số 0 âm sử dụng `"-0.0"` để JSON bảo toàn dấu của nó. Bản xem trước chuỗi bảo toàn các surrogate đơn lẻ nguồn nhưng không bao giờ chia tách một cặp surrogate hợp lệ tại ranh giới xem trước. Độ dài từ điển và tập hợp tuân theo CPython: các khóa và thành viên không thể băm sẽ làm cho lần duyệt thất bại, các thành viên tập hợp bằng nhau chỉ tính một lần, các khóa từ điển bằng nhau giữ lại đối tượng khóa đầu tiên và chỉ thay thế giá trị của nó, các đối tượng mã là các khóa và thành viên hợp lệ chỉ khi tất cả hằng số của chúng có thể băm được, và một giá trị từ điển null sẽ kết thúc dict mà không có mục đó.
 
-## Limits and failures
+## Giới hạn và lỗi (Limits & Failures)
 
-The selected file is limited to 16 MiB by default (64 MiB maximum). Marshal
-object count, nesting depth, and per-string size are bounded; exceeding a
-budget fails without partial success. Decode-limit failures are deterministic:
-the recovery action names the selected field and CLI option, its effective
-value, and its accepted maximum. Raise that field on the next call when the
-maximum permits it; waiting for another analysis or increasing host memory does
-not raise these controls. Argument counts, positional-only counts,
-keyword-only counts, and local counts must be non-negative. `co_stacksize` and
-`co_flags` are retained as signed 32-bit source fields when the selected CPython
-constructor accepted them. CPython 3.7 and 3.8 alpha constructors through
-3.8.0a4 did not reject negative stack sizes or flags; the check was added by
-[CPython commit a9f05d69](https://github.com/python/cpython/commit/a9f05d69ccbf3c75cdd604c25094282697789a62).
-Magic 3410 is ambiguous: 3.8.0a4 and 3.8.0b1 both use it, but they are on
-opposite sides of that constructor change. Negative values under magic 3410
-are preserved with an explicit limitation because the header cannot identify
-which constructor revision produced them. Magic 3411 and later 3.8 magics were
-introduced after that change, so their constructors reject negative values.
-The pinned magic entries distinguish these cases; see the CPython
-[3.7.0 constructor](https://github.com/python/cpython/blob/v3.7.0/Objects/codeobject.c),
-[3.8.0a4 constructor](https://github.com/python/cpython/blob/v3.8.0a4/Objects/codeobject.c),
-[3.8.0b1 constructor](https://github.com/python/cpython/blob/v3.8.0b1/Objects/codeobject.c),
-and [3.8.0b2 magic table](https://github.com/python/cpython/blob/v3.8.0b2/Lib/importlib/_bootstrap_external.py).
-Complete marshal coverage means all fields in the selected file were decoded;
-it does not establish that CPython will accept or execute the code object. On
-the 3.11+ layout, `co_code` must cover a
-whole number of code units. Every layout rejects argument counts that do not
-fit the local table CPython checks (`co_varnames`, including `*args` /
-`**kwargs`, or fast locals on 3.11+). Those files are malformed, so the
-workflow does not report complete coverage. 3.7–3.10 still accept an odd
-`co_code`, matching those constructors. Nested code collection walks reference
-chains iteratively and keeps one shared descendant list for a container that
-merely wraps another, instead of copying that list onto every wrapper. Set and
-dictionary keys walk tuple and frozenset reference chains the same way, so a
-long `TYPE_REF` chain stays within the call stack. A shared child stored twice
-still counts its expanded key against the string budget. Code-object equality
-keys record each name table's length and each entry's boundaries, so `()` and
-`("",)` stay distinct, and `co_varnames`, `co_freevars`, and `co_cellvars` stay
-separate tables. Names repeated through a marshal reference, including each
-code-constant name the report copies, count against the file budget once per
-copy. Empty strings add no bytes, so every copied
-name-table entry (`co_names`, varnames, freevars, cellvars, and
-`localsplusnames`) counts against the object budget before its array is built.
-Copied constant tables and each reported nested code relationship count
-against that same object budget. Integer digits and expanded
-set or dictionary keys, including a shared tuple repeated at each level, count
-against the string budget. Magics outside the pinned 3.7–3.13 table,
-truncated headers, trailing marshal bytes, and a non-code top-level object are
-typed failures.
+Tệp được chọn được giới hạn ở 16 MiB theo mặc định (tối đa 64 MiB). Số lượng đối tượng marshal, độ sâu lồng nhau và kích thước mỗi chuỗi đều có giới hạn; vượt quá ngân sách sẽ thất bại mà không có thành công một phần. Các lỗi giới hạn giải mã mang tính xác định: hành động khôi phục nêu tên trường đã chọn và tùy chọn CLI, giá trị hiệu dụng của nó và mức tối đa được chấp nhận. Hãy nâng trường đó trong lệnh gọi tiếp theo khi mức tối đa cho phép; việc đợi phân tích khác hoặc tăng bộ nhớ máy chủ không làm tăng các quyền kiểm soát này. Số lượng đối số, số lượng chỉ theo vị trí, số lượng chỉ theo từ khóa và số lượng biến cục bộ phải không âm. `co_stacksize` và `co_flags` được giữ lại dưới dạng các trường nguồn 32-bit có dấu khi hàm tạo CPython đã chọn chấp nhận chúng. Hàm tạo CPython 3.7 và 3.8 alpha qua 3.8.0a4 không từ chối kích thước stack hoặc cờ âm; việc kiểm tra đã được thêm vào bởi [commit CPython a9f05d69](https://github.com/python/cpython/commit/a9f05d69ccbf3c75cdd604c25094282697789a62).
+Magic 3410 là mơ hồ: cả 3.8.0a4 và 3.8.0b1 đều sử dụng nó, nhưng chúng nằm ở hai phía đối diện của thay đổi hàm tạo đó. Các giá trị âm dưới magic 3410 được bảo toàn với một giới hạn rõ ràng vì header không thể xác định bản sửa đổi hàm tạo nào đã tạo ra chúng. Magic 3411 và các magic 3.8 sau đó được giới thiệu sau thay đổi đó, do đó hàm tạo của chúng từ chối các giá trị âm. Các mục magic cố định phân biệt những trường hợp này; xem [hàm tạo CPython 3.7.0](https://github.com/python/cpython/blob/v3.7.0/Objects/codeobject.c), [hàm tạo 3.8.0a4](https://github.com/python/cpython/blob/v3.8.0a4/Objects/codeobject.c), [hàm tạo 3.8.0b1](https://github.com/python/cpython/blob/v3.8.0b1/Objects/codeobject.c), và [bảng magic 3.8.0b2](https://github.com/python/cpython/blob/v3.8.0b2/Lib/importlib/_bootstrap_external.py).
 
-A decoded header does not prove the matching `.py` is present. `python_version`
-is the magic table, not a running interpreter. This workflow does not recover
-source.
+Độ bao phủ marshal hoàn chỉnh có nghĩa là tất cả các trường trong tệp đã chọn đều được giải mã; nó không xác lập rằng CPython sẽ chấp nhận hoặc thực thi đối tượng mã đó. Trên bố cục 3.11+, `co_code` phải bao phủ một số nguyên các đơn vị mã. Mọi bố cục đều từ chối số lượng đối số không khớp với các kiểm tra CPython của bảng cục bộ (`co_varnames`, bao gồm `*args` / `**kwargs`, hoặc fast locals trên 3.11+). Các tệp đó là sai định dạng, do đó quy trình làm việc không báo cáo độ bao phủ hoàn chỉnh. 3.7–3.10 vẫn chấp nhận `co_code` lẻ, khớp với các hàm tạo đó. Lần duyệt thu thập mã lồng nhau lần theo các chuỗi tham chiếu một cách lặp đi lặp lại và giữ một danh sách hậu duệ dùng chung cho một vùng chứa chỉ đơn thuần bọc vùng chứa khác, thay vì sao chép danh sách đó vào mọi wrapper. Các khóa tập hợp và từ điển lần theo chuỗi tham chiếu tuple và frozenset theo cùng một cách, do đó một chuỗi `TYPE_REF` dài vẫn nằm trong call stack. Một phần tử con dùng chung được lưu trữ hai lần vẫn tính khóa mở rộng của nó vào ngân sách chuỗi. Khóa bằng nhau của đối tượng mã ghi lại độ dài của từng bảng tên và ranh giới của từng mục, do đó `()` và `("",)` vẫn riêng biệt, và `co_varnames`, `co_freevars`, và `co_cellvars` vẫn là các bảng riêng biệt. Tên lặp lại thông qua tham chiếu marshal, bao gồm từng tên hằng số mã mà báo cáo sao chép, tính vào ngân sách tệp một lần cho mỗi bản sao. Chuỗi rỗng không thêm byte nào, do đó mọi mục bảng tên được sao chép (`co_names`, varnames, freevars, cellvars, và `localsplusnames`) đều tính vào ngân sách đối tượng trước khi mảng của nó được xây dựng. Các bảng hằng số được sao chép và từng mối quan hệ mã lồng nhau được báo cáo tính vào cùng một ngân sách đối tượng đó. Các chữ số nguyên và khóa tập hợp hoặc từ điển mở rộng, bao gồm một tuple dùng chung lặp lại ở mỗi cấp độ, tính vào ngân sách chuỗi. Magic nằm ngoài bảng 3.7–3.13 cố định, header bị cắt cụt, byte marshal phía sau và đối tượng cấp cao nhất không phải mã là các lỗi có kiểu.
+
+Một header đã giải mã không chứng minh tệp `.py` khớp có mặt. `python_version` là bảng magic, không phải một trình thông dịch đang chạy. Quy trình làm việc này không khôi phục mã nguồn.

@@ -1,181 +1,123 @@
-# Build RL environments with REA
+# Xây dựng môi trường Học tăng cường (RL) với REA
 
-REA turns a recorded web app session into a runnable environment for training
-and testing AI agents. An agent can practice tasks such as finding an issue,
-creating a folder, or editing a record without running the original app.
+REA biến một phiên làm việc ứng dụng web đã ghi lại thành một môi trường có thể chạy được để huấn luyện và kiểm thử các AI agent. Một agent có thể thực hành các tác vụ như tìm lỗi, tạo thư mục hoặc chỉnh sửa bản ghi mà không cần chạy ứng dụng gốc.
 
-REA builds the tools the agent calls, the local data those tools use, and a
-test that checks the environment starts and responds. It supports changes
-when the recording confirms their effects. You can then use the environment
-with your RL framework to set task goals, check rewards, and run training.
+REA xây dựng các công cụ mà agent gọi, dữ liệu cục bộ mà các công cụ đó sử dụng và một bài kiểm tra để xác nhận môi trường khởi động và phản hồi. Nó hỗ trợ các thay đổi khi bản ghi xác nhận hiệu ứng của chúng. Sau đó, bạn có thể sử dụng môi trường này với framework Học tăng cường (RL) của mình để đặt mục tiêu nhiệm vụ, kiểm tra phần thưởng (rewards) và chạy quá trình huấn luyện.
 
-## Before you start
+## Trước khi bạn bắt đầu
 
-Install [REA and its agent integration](installation.md). To record an app,
-you also need a running test instance and a Chrome-family browser. Choose an
-instance where the agent is allowed to create, edit, and delete data. REA
-records the app you provide; you start it and prepare its test data.
+Cài đặt [REA và tích hợp agent của nó](installation.md). Để ghi lại một ứng dụng, bạn cũng cần một phiên bản thử nghiệm đang chạy và một trình duyệt thuộc dòng Chrome. Hãy chọn một phiên bản mà agent được phép tạo, sửa và xóa dữ liệu. REA ghi lại ứng dụng bạn cung cấp; bạn khởi động nó và chuẩn bị dữ liệu thử nghiệm.
 
-To run the exported environment, install the
-[AgentEnv framework](https://github.com/scaleapi/agentenv-framework#install)
-and start Docker. REA's [compatibility check](testing.md#exported-environment-bundles)
-uses AgentEnv version `0.9.1334` with Python 3.12.
+Để chạy môi trường đã xuất, hãy cài đặt [AgentEnv framework](https://github.com/scaleapi/agentenv-framework#install) và khởi động Docker. [Kiểm tra tính tương thích](testing.md#exported-environment-bundles) của REA sử dụng AgentEnv phiên bản `0.9.1334` với Python 3.12.
 
-There are two ways to build an environment: ask your agent to record the app,
-or start from a recording you already have.
+Có hai cách để xây dựng môi trường: yêu cầu agent của bạn ghi lại ứng dụng, hoặc bắt đầu từ một bản ghi bạn đã có sẵn.
 
-## 1. Record and build with your agent
+## 1. Ghi lại và xây dựng cùng agent của bạn
 
-Give your agent the app URL, the operations you need, your browser's executable
-path, and an output directory. For an app with folders, adapt this prompt:
+Cung cấp cho agent của bạn URL ứng dụng, các thao tác bạn cần, đường dẫn tệp thực thi của trình duyệt và thư mục đầu ra. Đối với ứng dụng có thư mục, hãy điều chỉnh lời nhắc sau:
 
 ```text
-Use REA to build an AgentEnv environment from my test web app at
-http://127.0.0.1:3000. Cover listing, creating, renaming, and deleting folders.
-You may create and remove test folders. Leave the existing data unchanged.
+Hãy sử dụng REA để xây dựng môi trường AgentEnv từ ứng dụng web thử nghiệm của tôi tại
+http://127.0.0.1:3000. Bao gồm việc liệt kê, tạo, đổi tên và xóa thư mục.
+Bạn có thể tạo và xóa các thư mục thử nghiệm. Hãy giữ nguyên dữ liệu hiện có.
 
-Sign in as admin using the password in APP_PASSWORD. Use the browser at
-/absolute/path/to/chromium. Save the environment to
-/absolute/path/to/my-env, which does not exist yet.
+Đăng nhập với tư cách admin bằng mật khẩu trong biến APP_PASSWORD. Sử dụng trình duyệt tại
+/duong/dan/tuyet/doi/toi/chromium. Lưu môi trường vào
+/duong/dan/tuyet/doi/toi/my-env, thư mục này hiện chưa tồn tại.
 
-Record the session, check which operations the environment supports, and
-export it. Report any unsupported operations and what is missing.
+Ghi lại phiên làm việc, kiểm tra xem môi trường hỗ trợ những thao tác nào và xuất nó ra.
+Báo cáo bất kỳ thao tác nào không được hỗ trợ và những gì còn thiếu.
 ```
 
-Replace the URL, account, paths, and folder operations with your own. Set
-`APP_PASSWORD` in the environment that starts REA's MCP server so REA can use
-it without putting the password in the prompt.
+Thay thế URL, tài khoản, đường dẫn và các thao tác thư mục bằng thông tin của bạn. Thiết lập `APP_PASSWORD` trong môi trường khởi động MCP server của REA để REA có thể sử dụng mà không cần đưa mật khẩu vào lời nhắc.
 
-Your agent inspects the app, records a session, checks the result, and exports
-a folder containing the runnable environment. It reports which operations
-work and which need more evidence. The app is used during recording; the
-exported environment runs from the saved data.
+Agent của bạn sẽ kiểm tra ứng dụng, ghi lại phiên làm việc, kiểm tra kết quả và xuất một thư mục chứa môi trường có thể chạy được. Nó báo cáo thao tác nào hoạt động và thao tác nào cần thêm bằng chứng. Ứng dụng chỉ được sử dụng trong quá trình ghi; môi trường đã xuất sẽ chạy từ dữ liệu đã lưu.
 
-After your agent exports the folder, skip to
-[run the environment](#3-run-the-environment). The next section is an
-alternative for an existing recording.
+Sau khi agent xuất thư mục, chuyển tới bước [chạy môi trường](#3-chay-moi-truong). Phần tiếp theo là giải pháp thay thế cho bản ghi đã có từ trước.
 
-## 2. Or build from a saved recording
+## 2. Hoặc xây dựng từ một bản ghi đã lưu
 
-A HAR file records a browser's network requests and responses. Export one
-with API response bodies from your browser's network panel, or use a
-recording you already have. To include create, edit, and delete operations,
-record those actions and the reads that show their results.
+Tệp HAR ghi lại các yêu cầu và phản hồi mạng của trình duyệt. Xuất một tệp kèm phần thân phản hồi API từ bảng mạng của trình duyệt, hoặc sử dụng bản ghi bạn đã có sẵn. Để bao gồm các thao tác tạo, sửa và xóa, hãy ghi lại các hành động đó và các lần đọc hiển thị kết quả của chúng.
 
-Build the environment into a new or empty directory:
+Xây dựng môi trường vào một thư mục mới hoặc trống:
 
 ```sh
 rea environment-build ./session.har ./my-env --name my-env --json
 ```
 
-You can also pass capture Evidence JSON saved by REA's
-`capture-browser-scenario` or `inspect-web-network-capture` commands. Here,
-Evidence means REA's saved recording with its source information. The build
-accepts HAR files and those JSON recordings. It reads local data and writes
-the environment folder without contacting the app.
+Bạn cũng có thể truyền JSON Bằng chứng (Evidence) được lưu bởi các lệnh `capture-browser-scenario` hoặc `inspect-web-network-capture` của REA. Ở đây, Bằng chứng có nghĩa là bản ghi đã lưu của REA cùng thông tin nguồn của nó. Quá trình xây dựng chấp nhận các tệp HAR và các bản ghi JSON đó. Nó đọc dữ liệu cục bộ và ghi thư mục môi trường mà không cần liên hệ với ứng dụng.
 
-Add `--dry-run` to review the build report without writing the folder. For an
-unreleased REA checkout, use `--package-tarball` with its packed package so
-the exported environment runs the same implementation.
+Thêm cờ `--dry-run` để xem lại báo cáo xây dựng mà không ghi thư mục. Đối với bản dựng REA chưa phát hành, hãy sử dụng `--package-tarball` với gói đã đóng gói để môi trường đã xuất chạy cùng một triển khai.
 
-The build report tells you what the environment supports:
+Báo cáo xây dựng cho bạn biết môi trường hỗ trợ những gì:
 
-| Report field      | What to check                                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `state`           | Whether the environment can answer from local state or uses recorded-response replay.                                    |
-| `coverage.reads`  | Which read operations use state and which replay recorded answers.                                                       |
-| `coverage.writes` | Which create, edit, and delete operations are supported. Each withheld operation includes a reason and a recording hint. |
-| `warnings`        | Recorded content or local paths to review before sharing the folder.                                                     |
+| Trường báo cáo | Nội dung kiểm tra |
+| :--- | :--- |
+| `state` | Môi trường có thể trả lời từ trạng thái cục bộ hay sử dụng phát lại phản hồi đã ghi. |
+| `coverage.reads` | Những thao tác đọc nào sử dụng trạng thái và thao tác nào phát lại câu trả lời đã ghi. |
+| `coverage.writes` | Những thao tác tạo, sửa và xóa nào được hỗ trợ. Mỗi thao tác bị giữ lại kèm theo một lý do và gợi ý ghi lại. |
+| `warnings` | Nội dung đã ghi hoặc đường dẫn cục bộ cần xem lại trước khi chia sẻ thư mục. |
 
-A successful build means the folder was created. Check the report to confirm
-it supports the operations your tasks need. `coverage: null` means the build
-could not prepare state for this environment and it will use replay.
+Xây dựng thành công có nghĩa là thư mục đã được tạo. Hãy kiểm tra báo cáo để xác nhận nó hỗ trợ các thao tác mà tác vụ của bạn cần. `coverage: null` có nghĩa là bản dựng không thể chuẩn bị trạng thái cho môi trường này và nó sẽ sử dụng chế độ phát lại (replay).
 
-## 3. Run the environment
+## 3. Chạy môi trường
 
-Whether your agent exported the folder or you built it from a HAR, run it
-with AgentEnv:
+Dù agent của bạn đã xuất thư mục hay bạn tự xây dựng từ tệp HAR, hãy chạy nó với AgentEnv:
 
 ```sh
 agent-env run ./my-env
 ```
 
-Use the folder path your agent reported if it differs. The first run builds
-the container image, so it needs access to the image and package sources.
+Sử dụng đường dẫn thư mục mà agent báo cáo nếu có sự khác biệt. Lần chạy đầu tiên sẽ xây dựng image container, vì vậy nó cần quyền truy cập vào nguồn image và package.
 
-REA includes a basic test, called the smoke task. It checks the expected tool
-count and, when a suitable read tool exists, calls it and checks its response
-status. Passing this test shows the environment starts and responds in the
-tested setup. It does not yet score an agent on an application task.
+REA bao gồm một bài kiểm tra cơ bản, gọi là bài kiểm tra smoke. Nó kiểm tra số lượng công cụ dự kiến và khi có công cụ đọc phù hợp, nó sẽ gọi công cụ đó và kiểm tra trạng thái phản hồi. Vượt qua bài kiểm tra này cho thấy môi trường đã khởi động và phản hồi trong thiết lập thử nghiệm. Nó chưa chấm điểm agent trên một tác vụ ứng dụng thực tế.
 
-The folder contains the recording, a tool manifest describing the available
-operations, a Dockerfile, environment configuration, and the test. The
-[export reference](agent-environments.md#export-a-bundle) describes each file.
+Thư mục chứa bản ghi, một manifest công cụ mô tả các thao tác khả dụng, một Dockerfile, cấu hình môi trường và bài kiểm tra. [Tài liệu tham khảo xuất bản](agent-environments.md#export-a-bundle) mô tả chi tiết từng tệp.
 
-## 4. Add tasks and reward checks
+## 4. Thêm nhiệm vụ và kiểm tra phần thưởng
 
-Start with one task the exported tools support. Give it a clear goal and a
-checkable result. For example, if folder creation is supported, ask your
-agent:
+Bắt đầu với một nhiệm vụ mà các công cụ đã xuất hỗ trợ. Hãy đặt cho nó một mục tiêu rõ ràng và kết quả có thể kiểm tra được. Ví dụ: nếu việc tạo thư mục được hỗ trợ, hãy hỏi agent của bạn:
 
 ```text
-Use this exported environment to add an AgentEnv task that asks an agent
-to create a folder named Practice. Check the saved environment state to
-confirm the folder exists with that name, and use that check to score the
-result. Reset the environment before each run so attempts start with the
-same data. Use the AgentEnv task and verifier formats.
+Sử dụng môi trường đã xuất này để thêm một nhiệm vụ AgentEnv yêu cầu agent
+tạo một thư mục có tên là Practice. Kiểm tra trạng thái môi trường đã lưu để
+xác nhận thư mục tồn tại với tên đó, và sử dụng kiểm tra đó để tính điểm kết quả.
+Đặt lại (reset) môi trường trước mỗi lần chạy để các lần thử bắt đầu với cùng dữ liệu.
+Sử dụng định dạng nhiệm vụ và trình xác minh của AgentEnv.
 ```
 
-This asks your agent to help build the task and its grading check around the
-environment REA generated. A retrieval task might check an answer against a
-recorded value. A task that changes data should check the resulting state.
-When state is available, the environment supports reset, load, and read-back
-operations for repeatable runs.
+Thao tác này yêu cầu agent hỗ trợ xây dựng nhiệm vụ và kiểm tra chấm điểm xung quanh môi trường mà REA đã tạo ra. Một nhiệm vụ truy xuất có thể kiểm tra câu trả lời dựa trên một giá trị đã ghi. Một nhiệm vụ làm thay đổi dữ liệu phải kiểm tra trạng thái kết quả. Khi trạng thái có sẵn, môi trường hỗ trợ các thao tác đặt lại, tải và đọc lại cho các lần chạy lặp lại.
 
-Use the [AgentEnv documentation](https://www.agentenvframework.com/docs) for
-task configuration, agent connections, scoring, and execution. Connect the
-resulting tasks to your chosen RL training workflow.
+Xem [tài liệu AgentEnv](https://www.agentenvframework.com/docs) để biết cấu hình nhiệm vụ, kết nối tác tử, tính điểm và thực thi. Kết nối các nhiệm vụ thu được vào quy trình huấn luyện RL đã chọn của bạn.
 
-## Improve an operation that is missing
+## Cải thiện một thao tác còn thiếu
 
-For REA to support a change, the recording needs to show what happened before
-and after it. When recording against your test app:
+Để REA hỗ trợ một thay đổi, bản ghi cần hiển thị những gì đã xảy ra trước và sau thay đổi đó. Khi ghi lại đối với ứng dụng thử nghiệm của bạn:
 
-1. Read the list and an existing item before making changes. Repeat the
-   initial reads to show which values change independently.
-2. Create a test item, read it back, and read the list before the next change.
-   Repeat with a second item and different text.
-3. Edit each test item, then read the item and list again. Leave more than a
-   second between creation and the first edit to show time-dependent changes.
-4. Delete the test items, then read them back and read the list to confirm
-   their removal.
+1. Đọc danh sách và một mục hiện có trước khi thực hiện thay đổi. Lặp lại các lần đọc ban đầu để hiển thị giá trị nào thay đổi độc lập.
+2. Tạo một mục thử nghiệm, đọc lại nó và đọc danh sách trước lần thay đổi tiếp theo. Lặp lại với mục thứ hai và nội dung khác.
+3. Chỉnh sửa từng mục thử nghiệm, sau đó đọc lại mục và danh sách. Để cách nhau hơn một giây giữa lúc tạo và lần sửa đầu tiên để hiển thị các thay đổi phụ thuộc thời gian.
+4. Xóa các mục thử nghiệm, sau đó đọc lại chúng và đọc danh sách để xác nhận việc xóa.
 
-Also record filters, searches, sorting, and paging if your tasks need them.
-The agent should check that every recording step completed before using it.
-The [recording workflow](https://github.com/morluto/rea/blob/main/.agents/skills/reverse-engineer-anything/references/environments.md)
-has the detailed browser instructions, including timeouts and handling IDs
-assigned by the app.
+Đồng thời ghi lại các bộ lọc, tìm kiếm, sắp xếp và phân trang nếu nhiệm vụ của bạn cần chúng.
+Agent phải kiểm tra xem mọi bước ghi đã hoàn thành trước khi sử dụng.
+[Quy trình ghi lại](https://github.com/morluto/rea/blob/main/.agents/skills/reverse-engineer-anything/references/environments.md)
+có hướng dẫn chi tiết về trình duyệt, bao gồm thời gian chờ và xử lý các ID do ứng dụng gán.
 
-Use the report's hints to decide what to record next:
+Sử dụng gợi ý của báo cáo để quyết định nội dung cần ghi tiếp theo:
 
-| Reason                          | Next step                                                                                                                   |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `unconfirmed`                   | Read the item and its list after the change.                                                                                |
-| `no-state-target`               | Check the path template and recorded views; record missing reads. The route form may not be supported as a mutation target. |
-| `no-observation`                | Read back a created item. For an edit or delete, also read it before changing it.                                           |
-| `contradicted` or `side-effect` | Inspect the reported disagreement. The operation may need behavior REA cannot model yet.                                    |
+| Lý do | Bước tiếp theo |
+| :--- | :--- |
+| `unconfirmed` | Đọc mục đó và danh sách của nó sau khi thay đổi. |
+| `no-state-target` | Kiểm tra mẫu đường dẫn và các chế độ xem đã ghi; ghi lại các lần đọc còn thiếu. Biểu mẫu tuyến đường có thể không được hỗ trợ làm mục tiêu đột biến. |
+| `no-observation` | Đọc lại một mục đã tạo. Đối với việc sửa hoặc xóa, cũng đọc nó trước khi thay đổi. |
+| `contradicted` hoặc `side-effect` | Kiểm tra sự bất đồng được báo cáo. Thao tác có thể cần hành vi mà REA chưa thể mô hình hóa. |
 
-See the [full reason table](agent-environments.md#build-a-bundle-in-one-step)
-for the other cases. Rebuild from the new recording and check the report
-again. A new recording replaces the build input; combining separate recording
-sessions is not supported.
+Xem [bảng lý do đầy đủ](agent-environments.md#build-a-bundle-in-one-step) cho các trường hợp khác. Xây dựng lại từ bản ghi mới và kiểm tra lại báo cáo. Một bản ghi mới thay thế đầu vào của bản dựng; việc kết hợp các phiên ghi riêng biệt không được hỗ trợ.
 
-## Compare with the original app
+## So sánh với ứng dụng gốc
 
-For a stronger check, record a separate sequence of calls against the real
-app, starting from the same test data as the original recording. This is a
-probe. Restore that starting data before each probe sequence, then compare
-the saved probe recordings with the environment:
+Để kiểm tra chắc chắn hơn, hãy ghi lại một chuỗi lệnh gọi riêng biệt đối với ứng dụng thực, bắt đầu từ cùng một dữ liệu thử nghiệm như bản ghi ban đầu. Đây là một đầu dò (probe). Khôi phục dữ liệu bắt đầu đó trước mỗi chuỗi đầu dò, sau đó so sánh các bản ghi đầu dò đã lưu với môi trường:
 
 ```sh
 rea environment-compare ./my-env/envs/my-env/manifest.json \
@@ -183,22 +125,12 @@ rea environment-compare ./my-env/envs/my-env/manifest.json \
   --probe ./probe-create-edit-delete.json --probe ./probe-reads.json --json
 ```
 
-Each probe file must be capture Evidence JSON from REA. The comparison runs
-offline and reports differences in responses, unsupported calls, and missing
-observations. It accounts for supported differences in IDs, times, and
-modeled generated values. Agreement applies to the calls those probes check.
-See the [comparison reference](agent-environments.md#measure-fidelity-against-the-application)
-for the exact rules.
+Mỗi tệp đầu dò phải là JSON Bằng chứng (Evidence) từ REA. Việc so sánh chạy ngoại tuyến và báo cáo sự khác biệt trong phản hồi, các lệnh gọi không được hỗ trợ và các quan sát còn thiếu. Nó tính đến các khác biệt được hỗ trợ về ID, thời gian và các giá trị tạo ra được mô hình hóa. Sự tương đồng áp dụng cho các lệnh gọi mà các đầu dò đó kiểm tra.
+Xem [tài liệu so sánh](agent-environments.md#measure-fidelity-against-the-application) để biết các quy tắc chính xác.
 
-## Before sharing the environment
+## Trước khi chia sẻ môi trường
 
-The exported folder includes retained response bodies and local source paths.
-Standard authentication headers are excluded, but custom headers, query
-values, and body tokens can remain. Review the content you plan to share.
-Credential-name warnings point to values worth reviewing; they do not remove
-those values or establish that the recording contains no credentials.
+Thư mục đã xuất bao gồm các phần thân phản hồi được lưu giữ và các đường dẫn nguồn cục bộ. Các header xác thực tiêu chuẩn được loại trừ, nhưng header tùy chỉnh, giá trị truy vấn và mã token trong thân phản hồi có thể vẫn còn. Hãy xem lại nội dung bạn định chia sẻ. Cảnh báo tên thông tin xác thực chỉ ra các giá trị đáng để xem xét; chúng không xóa các giá trị đó hoặc chứng minh rằng bản ghi không chứa thông tin xác thực.
 
-For direct MCP serving, replay behavior, state controls, and resource limits,
-see the [environment reference](agent-environments.md). The
-[implementation index](specs/agent-environments/README.md) links the contributing
-PRs and their verification records.
+Để phục vụ trực tiếp qua MCP, hành vi phát lại, kiểm soát trạng thái và giới hạn tài nguyên, xem [tài liệu môi trường](agent-environments.md).
+[Mục lục triển khai](specs/agent-environments/README.md) liên kết các PR đóng góp và hồ sơ xác minh của chúng.
