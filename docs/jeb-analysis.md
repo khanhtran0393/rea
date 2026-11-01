@@ -1,77 +1,42 @@
-# JEB instrumentation and analysis
+# Thiết bị đo và phân tích JEB (JEB Instrumentation & Analysis)
 
-REA exposes JEB-backed project, unit, and decompilation inspection through the CLI and MCP, served by JEB's own MCP interface. JEB is a bring-your-own engine: REA never installs it, launches it, or opens its project databases itself.
+REA cung cấp khả năng kiểm tra dự án, đơn vị (unit) và dịch ngược được hỗ trợ bởi JEB thông qua CLI và MCP, được phục vụ bởi chính giao diện MCP của JEB. JEB là một engine do người dùng tự cung cấp (bring-your-own): REA không bao giờ tự cài đặt, khởi chạy hoặc mở cơ sở dữ liệu dự án của nó.
 
-## Bring-your-own engine
+## Engine tự cung cấp
 
-Start a JEB client that serves MCP and point REA at it:
+Khởi động một client JEB phục vụ MCP và trỏ REA tới nó:
 
-- Default endpoint: `http://127.0.0.1:8425/mcp`. Override with `REA_JEB_MCP_URL` (absolute `http`/`https` URL with literal host `127.0.0.1` or `[::1]`; redirects, remote hosts, credentials, query strings, and fragments are rejected rather than silently dropped).
-- In the JEB GUI client, start the MCP server from the _File_ menu (or via the VIBRE assistant).
-- Headless, the official Linux CE build `5.48.0.202610071539` supports `-c --mcp`. From the JEB installation directory, select JDK 21 or newer through `JAVA_HOME`, choose your target and bind explicitly to loopback:
+- Endpoint mặc định: `http://127.0.0.1:8425/mcp`. Ghi đè bằng `REA_JEB_MCP_URL` (URL `http`/`https` tuyệt đối với host là `127.0.0.1` hoặc `[::1]`; chuyển hướng, host từ xa, thông tin xác thực, chuỗi truy vấn và đoạn mã đều bị từ chối thay vì âm thầm loại bỏ).
+- Trong client GUI JEB, khởi động máy chủ MCP từ menu _File_ (hoặc thông qua trợ lý VIBRE).
+- Ở chế độ headless, bản dựng Linux CE chính thức `5.48.0.202610071539` hỗ trợ `-c --mcp`. Từ thư mục cài đặt JEB, chọn JDK 21 hoặc mới hơn qua `JAVA_HOME`, chọn mục tiêu và liên kết rõ ràng với loopback:
 
   ```sh
-  "$JAVA_HOME/bin/java" -jar bin/app/jeb.jar -c --mcp --interface=127.0.0.1 \
-    --port=8425 --infile=/absolute/path/to/target
+  "$JAVA_HOME/bin/java" -jar bin/app/jeb.jar -c --mcp --interface=127.0.0.1     --port=8425 --infile=/absolute/path/to/target
   ```
 
-  Complete the vendor's first-use EULA and license-key activation when prompted. The Linux audit used an isolated installation, a 1536 MiB Java heap and one active processor inside a separately bounded process family; JVM heap limits alone do not bound the whole family.
+  Hoàn thành EULA lần đầu sử dụng của nhà cung cấp và kích hoạt mã bản quyền khi được nhắc.
 
-- JEB's documented programmatic route (`JebMcpServerInstance` from the JEB API) remains an alternative. The earlier licensed 5.48 headless verification used that route because its CLI did not accept `--mcp`. Check your installed build's `-c --help` and live tool catalog; the version number alone does not establish the launcher options or supported operations.
+- Đường dẫn lập trình được tài liệu hóa của JEB (`JebMcpServerInstance` từ JEB API) vẫn là một giải pháp thay thế.
 
-For setup registration, set `REA_JEB_MCP_URL` in the REA process environment
-before running `rea setup`. The approved setup plan preserves the exact selected
-URL after validating its syntax. That validation does not establish that the
-JEB service is reachable or that a project is open; use the existing
-`inspect-jeb-client` command for a read-only service query.
+Để đăng ký thiết lập, hãy đặt `REA_JEB_MCP_URL` trong môi trường tiến trình REA trước khi chạy `rea setup`. Kế hoạch thiết lập đã phê duyệt giữ lại URL chính xác đã chọn sau khi xác thực cú pháp của nó.
 
-MCP `binary_session` probes the live JEB service and its advertised tool catalog.
-Availability is reported per operation: a reachable headless client can support
-inspection and decompilation while refusing `open_jeb_project`. Catalog discovery
-is one deadline across connection and pagination; a responsive server cannot keep
-discovery running indefinitely by returning more pages.
+Catalog discovery và mỗi `tools/call` chia sẻ `REA_JEB_MCP_TIMEOUT_MS`. Đặt nó trong môi trường khởi chạy của REA thành một số nguyên từ 1 đến 2147483647 mili giây, ví dụ `REA_JEB_MCP_TIMEOUT_MS=300000` cho ngân sách 5 phút. Nếu bỏ qua, mặc định là 60000 ms của MCP client SDK (`@modelcontextprotocol/client` 2.3.1).
 
-Catalog discovery and each `tools/call` share `REA_JEB_MCP_TIMEOUT_MS`. Set it
-in REA's launch environment to an integer from 1 to 2147483647 milliseconds,
-for example `REA_JEB_MCP_TIMEOUT_MS=300000` for a five-minute budget. Omitted
-means the pinned MCP client SDK default of 60000 ms (`@modelcontextprotocol/client`
-2.3.1). Restart REA and reconnect to apply a change. Raising the setting raises
-both phases. It does not make one end-to-end deadline across a whole CLI or MCP
-operation: discovery and each `tools/call` each get that budget. A request that
-reaches its budget returns a typed timeout naming the phase and the effective
-milliseconds, while caller cancellation remains a cancellation. Allow execution,
-cleanup, and delivery headroom in the outer MCP client deadline.
+## Các thao tác (Operations)
 
-Earlier verification used JEB 5.48.0 (Linux x64, licensed build) serving `jeb-mcp-server` 1.3.0 over streamable HTTP. The official Linux x64 CE build `5.48.0.202610071539` was also verified through real CLI and production stdio MCP native-code workflows; see the [Linux CE audit](https://github.com/morluto/rea/blob/42e1a17d6e6c0487f17be0bae248553c4caba7f7/experiments/analysis-efficiency/jeb-linux-native.md) for measurements and limits. CE verification does not establish licensed/Demo Android decompilation or GUI behavior.
-
-## Operations
-
-| MCP tool / CLI command                      | Purpose                                                                                                                         |
+| Công cụ MCP / Lệnh CLI                      | Mục đích                                                                                                                        |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `inspect_jeb_client` / `inspect-jeb-client` | Engine version, GUI or headless mode, startup time                                                                              |
-| `open_jeb_project` / `open-jeb-project`     | Open or create a project from an artifact or `.jdb2` on the engine host; returns input-file SHA-256 digests and top-level units |
-| `list_jeb_units` / `list-jeb-units`         | Page units by stable path and type (`filter`, `parent-unit-path`, `index`, `count`)                                             |
-| `decompile_jeb_item` / `decompile-jeb-item` | Decompile one type or method to engine pseudo-code                                                                              |
+| `inspect_jeb_client` / `inspect-jeb-client` | Phiên bản engine, chế độ GUI hoặc headless, thời gian khởi động                                                                 |
+| `open_jeb_project` / `open-jeb-project`     | Mở hoặc tạo một dự án từ artifact hoặc `.jdb2` trên máy chủ engine; trả về mã băm SHA-256 tệp đầu vào và các unit cấp cao nhất |
+| `list_jeb_units` / `list-jeb-units`         | Phân trang các unit theo đường dẫn và kiểu ổn định (`filter`, `parent-unit-path`, `index`, `count`)                              |
+| `decompile_jeb_item` / `decompile-jeb-item` | Dịch ngược một kiểu hoặc phương thức thành mã giả của engine                                                                    |
 
-All four preserve target-file bytes. `open_jeb_project` selects or creates an engine-side project; analysis queries can populate computed analysis within it. Evidence records the endpoint, caller-selected parameters, and available engine-reported digests. Mutation workflows the engine also offers (renames, comments, `save_project`, `close_project`) are intentionally not exposed yet.
+Cả bốn thao tác đều bảo toàn các byte tệp mục tiêu. `open_jeb_project` chọn hoặc tạo dự án phía engine; các truy vấn phân tích có thể điền các phân tích đã tính toán vào trong đó. Bằng chứng ghi lại endpoint, các tham số do bên gọi chọn và các mã băm sẵn có do engine báo cáo.
 
-**Engine coverage note:** The earlier licensed 5.48.0 headless verification did not advertise `open_project`; it selected the target when the engine client started. For that build, use `--infile` on the programmatic launcher or open the file in the GUI. The audited CE headless catalog also omitted `open_project`; the verified CLI route above selects its input at startup. Use `binary_session` to inspect the current engine's advertised operations. REA preserves an unavailable tool's refusal; `open_jeb_project` requires an engine that advertises `open_project`. The CE audit does not establish GUI project-opening support.
+## Ngữ nghĩa (Semantics)
 
-## Semantics
-
-- Paths in `open_jeb_project` are resolved by the JEB process, not by REA; REA does not require the artifact to exist locally.
-- The engine caps `list_units` pages at 100; a full page is reported as `coverage: "partial"` because more units may exist. An empty remainder is `complete` only when fewer units than requested were returned.
-- When `decompile_jeb_item` omits `unit_path`, the engine implicitly selects the project's first code unit; REA reports `unit_path: null` and a limitation instead of guessing the effective unit.
-- `item_address` is a JEB code-item reference, such as a value returned by the engine's `list_code_items`. Preserve that representation and select its code unit explicitly. For the audited CE SQLite unit, the exported method reference was `sqlite3_libversion_number`; using its raw ELF symbol address did not produce a successful decompilation. File offsets, ELF virtual addresses and engine item references have different semantics. REA currently exposes unit listing, while code-item discovery remains an upstream JEB operation.
-- Valid engine refusals (`success: false` envelopes) return `execution_failure` with the engine's message when available. Diagnostics preserve the original envelope, including any recovery advice, and the inputs of a refused primary request. If client metadata fails after a primary reply, that reply and the caller's inputs remain in partial Evidence. REA does not infer an unsupported target from a refusal, invoke a recovery tool, or retry the request.
-- Successfully parsed client information is reused for the lifetime of the MCP connection, including when the engine omits its version. Explicit client inspection and availability probes refresh it.
-- An unreachable endpoint is a provider-availability failure with recovery guidance; REA does not retry or spawn the engine.
-
-Real-engine verification lives in the JEB lane described in [testing.md](testing.md); mock transport tests do not establish real-engine compatibility.
-
-A project-open refusal retains the selected engine-host artifact path separately
-from the service endpoint. Discovery of an unreachable service includes the same
-start/configuration recovery as a direct request. If a primary reply completes
-before a later client-information lookup fails or is cancelled, the typed failure
-retains that reply as partial Evidence. Engine metadata stays unknown; this is not
-a claim that the full operation completed.
+- Đường dẫn trong `open_jeb_project` được giải quyết bởi tiến trình JEB, không phải bởi REA; REA không yêu cầu artifact phải tồn tại cục bộ.
+- Engine giới hạn các trang `list_units` ở 100; một trang đầy đủ được báo cáo là `coverage: "partial"` vì có thể tồn tại nhiều unit hơn.
+- Khi `decompile_jeb_item` bỏ qua `unit_path`, engine ngầm chọn unit mã đầu tiên của dự án; REA báo cáo `unit_path: null` và một giới hạn thay vì đoán unit hiệu dụng.
+- `item_address` là tham chiếu mục mã JEB, chẳng hạn như giá trị được trả về bởi `list_code_items` của engine. Bảo toàn biểu diễn đó và chọn unit mã của nó một cách rõ ràng.
+- Các từ chối hợp lệ của engine (phong bì `success: false`) trả về `execution_failure` với thông báo của engine khi khả dụng.

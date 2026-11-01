@@ -1,149 +1,54 @@
-# Reconstruction readiness verification
+# Xác minh tính sẵn sàng tái cấu trúc (Reconstruction Readiness)
 
-Run the public static-analysis journeys and synthetic report-evaluator checks
-from a clean checkout:
+Chạy các luồng phân tích tĩnh công khai và kiểm tra bộ đánh giá báo cáo tổng hợp từ một bản checkout sạch:
 
 ```sh
 npm ci
 npm run verify:readiness
 ```
 
-The command builds the redistributable native conformance fixtures, inspects
-the native executable through the public CLI, and analyzes the JavaScript CLI
-and Electron fixture sources through both CLI and MCP. It checks matching
-CLI/MCP Evidence identities for those two application analyses. The fixture
-applications are not executed, and native MCP parity is not exercised.
+Lệnh này xây dựng các fixture tuân thủ native có thể phân phối lại, kiểm tra tệp thực thi native thông qua CLI công khai, và phân tích các nguồn fixture JavaScript CLI và Electron thông qua cả CLI và MCP. Nó kiểm tra tính khớp của các danh tính Bằng chứng CLI/MCP cho hai phân tích ứng dụng đó. Các ứng dụng fixture không được thực thi và tính tương đương MCP native không được thử nghiệm.
 
-Separately, the command evaluates a wholly synthetic nine-stage input and
-checks evaluator determinism, Evidence tampering rejection, and stale-source
-digest rejection. These checks concern report evaluation; they do not establish
-application runtime behavior, authority recovery, cancellation cleanup,
-behavioral equivalence, or reconstruction closure for the analyzed fixtures.
-The command prints one compact JSON summary.
+Tách biệt khỏi điều đó, lệnh đánh giá một đầu vào 9 giai đoạn hoàn toàn tổng hợp và kiểm tra tính tất định của bộ đánh giá, việc từ chối Bằng chứng bị giả mạo và việc từ chối mã băm nguồn cũ. Các kiểm tra này liên quan đến việc đánh giá báo cáo; chúng không xác lập hành vi runtime của ứng dụng, phục hồi thẩm quyền, dọn dẹp hủy bỏ, tính tương đương hành vi hoặc đóng tái cấu trúc cho các fixture được phân tích. Lệnh in một bản tóm tắt JSON nhỏ gọn.
 
-Set `REA_READINESS_REPORT_PATH` to retain the complete machine-readable report:
+Đặt `REA_READINESS_REPORT_PATH` để giữ lại báo cáo máy đọc được hoàn chỉnh:
 
 ```sh
 REA_READINESS_REPORT_PATH=readiness-report.json npm run verify:readiness
 ```
 
-CI runs this command on Linux, publishes the compact summary, and retains the
-full report as the `reconstruction-readiness` artifact.
+CI chạy lệnh này trên Linux, xuất bản bản tóm tắt thu gọn và giữ lại báo cáo đầy đủ dưới dạng artifact `reconstruction-readiness`.
 
-## Report scope and ownership
+## Phạm vi báo cáo và quyền sở hữu
 
-The verifier runs as `npm run verify:readiness`; it is not exposed as a public
-CLI command or MCP tool. Its report separates two kinds of verification:
+Bộ xác minh chạy dưới dạng `npm run verify:readiness`; nó không được hiển thị dưới dạng lệnh CLI công khai hoặc công cụ MCP. Báo cáo của nó tách biệt hai loại xác minh:
 
-- `observed_journeys` retains the actual static-analysis Evidence and the
-  observed CLI/MCP identity checks, with their coverage limits.
-- `evaluator_conformance` retains the synthetic baseline report and the
-  evaluator checks. Its nine-stage `pass` describes acceptance of supplied
-  synthetic observations.
+- `observed_journeys` giữ lại Bằng chứng phân tích tĩnh thực tế và các kiểm tra danh tính CLI/MCP quan sát được, cùng giới hạn độ bao phủ của chúng.
+- `evaluator_conformance` giữ lại báo cáo đường cơ sở tổng hợp và các kiểm tra của bộ đánh giá. `pass` 9 giai đoạn của nó mô tả việc chấp nhận các quan sát tổng hợp được cung cấp.
 
-The verifier's overall success means its listed checks passed. It is not an
-end-to-end reconstruction-readiness verdict. Actual analysis Evidence is not
-grafted into the synthetic report or used to close its checks.
+Artifact được giữ lại hiện sử dụng `schema: "ReconstructionReadinessVerificationReport"` và `schema_version: 1`. Báo cáo 9 giai đoạn tổng hợp hiện nằm tại `evaluator_conformance.baseline_report`. Bằng chứng CLI và MCP quan sát được được giữ lại trong các bundle riêng biệt dưới `observed_journeys.evidence_bundles`.
 
-The retained artifact now uses `schema: "ReconstructionReadinessVerificationReport"`
-and `schema_version: 1`. The previous unversioned artifact was the nine-stage
-evaluator report itself. Consumers should read the two explicit sections; the
-synthetic nine-stage report now lives at `evaluator_conformance.baseline_report`.
-Observed CLI and MCP Evidence are retained in separate bundles under
-`observed_journeys.evidence_bundles`, preserving each surface's records.
+## Các giai đoạn của bộ đánh giá tổng hợp
 
-The evaluator, schemas, synthetic input, and semantic tests live under
-`tests/conformance/readiness/report/`. They are development verification code,
-excluded from the compiled runtime package. The evaluator authenticates Evidence
-commitments and checks supplied observations for consistency; it does not
-independently observe the events described by those observations.
-
-## Synthetic evaluator stages
-
-| Stage                           | Required supplied observations                                                                                        |
+| Giai đoạn                       | Các quan sát bắt buộc được cung cấp                                                                                   |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `discover-classify`             | target-free startup, artifact inventory, compatible workflow selection, and exact visible limits                      |
-| `diagnose-environment`          | broken runtime separated from analysis failure, version skew detected, and revision changed after recovery            |
-| `acquire-authority`             | missing scope reported, narrow grant resumed, expansion reprompted, and denial launched nothing                       |
-| `static-analysis`               | native and JavaScript routing plus preserved ambiguity, truncation, unsupported syntax, and residual unknowns         |
-| `reactive-scenarios`            | predicate-driven interaction, descendant settlement, Electron correlation, and cancellation cleanup Evidence          |
-| `compare-authority-candidate`   | explicit partial-order/finite-trace semantics, primary divergence localization, and unknown for incomplete comparison |
-| `preserve-contradictions`       | record-and-continue, affected equivalence blocked, and unaffected comparison retained                                 |
-| `verify-reconstruction-closure` | incomplete reconstruction detected, incremental verifier closure, and authority-delegating candidates rejected        |
-| `export-replay`                 | CLI/MCP parity, process/structured failure parity, deterministic replay, tamper rejection, and stale-input rejection  |
+| `discover-classify`             | khởi động không mục tiêu, kiểm kê artifact, chọn luồng tương thích và giới hạn hiển thị chính xác                      |
+| `diagnose-environment`          | tách biệt runtime hỏng khỏi lỗi phân tích, phát hiện lệch phiên bản và thay đổi bản sửa đổi sau phục hồi              |
+| `acquire-authority`             | báo cáo phạm vi thiếu, tiếp tục cấp quyền hạn hẹp, nhắc lại việc mở rộng và từ chối không khởi chạy gì                |
+| `static-analysis`               | định tuyến native và JavaScript cùng bảo toàn tính mơ hồ, cắt ngắn, cú pháp không hỗ trợ và ẩn số tồn dư            |
+| `reactive-scenarios`            | tương tác dựa trên vị ngữ, lắng đọng con cái, tương quan Electron và Bằng chứng dọn dẹp hủy bỏ                        |
+| `compare-authority-candidate`   | ngữ nghĩa dấu vết hữu hạn/thứ tự một phần rõ ràng, định vị phân kỳ chính và unknown cho so sánh chưa hoàn tất        |
+| `preserve-contradictions`       | ghi nhận và tiếp tục, chặn tương đương bị ảnh hưởng và giữ lại so sánh không bị ảnh hưởng                             |
+| `verify-reconstruction-closure` | phát hiện tái cấu trúc chưa hoàn tất, đóng xác minh tăng dần và từ chối các ứng viên ủy quyền thẩm quyền             |
+| `export-replay`                 | tính tương đương CLI/MCP, lỗi cấu trúc/tiến trình, phát lại tất định, từ chối giả mạo và từ chối đầu vào cũ            |
 
-Within the synthetic input, every stage and required check must occur exactly
-once and link to Evidence in its embedded bundle. `fail`, `unknown`,
-`unsupported`, `truncated`, and `skipped` never aggregate to `pass`.
+## Quy tắc Fail-Closed
 
-## Fail-closed rules
-
-The evaluator rejects or withholds a passing synthetic report when:
-
-- a bounded capability omits its effective numeric limits;
-- a fixture lacks exactly one compatible selected workflow;
-- an incompatible or unavailable provider was invoked;
-- a typed CLI failure exits zero, or an MCP failure reports success;
-- concurrent behavior uses total-order comparison;
-- truncation, instability, unavailable authority, or contradiction is labeled
-  equivalent;
-- a deliberate primary divergence is not localized;
-- contradiction Evidence or its affected comparison is missing;
-- the reconstruction obligation ledger is not `ready`, has no required
-  obligation, or retains an unowned/unverified required obligation;
-- a denied or cancelled grant reports a process launch, a cancelled cleanup
-  observation omits diagnostic Evidence, or owned resources remain;
-- replay is nondeterministic, tampering/staleness is not detected, or the
-  expected source digest differs.
-
-Each finding names its stage, stable reason code, Evidence IDs, and detail.
-Stage `capability_issue` and `next_action` fields map unsupported or failing
-work to the responsible capability and remediation without claiming that the
-requested analysis ran.
-
-Closure history describes one fixed required-obligation universe from the
-supplied final ledger. Its first entry establishes the starting open count and
-cannot claim a new transition. Every observation marked `ready` must report
-zero required obligations open. Observations marked `open` or `failed` must
-report a positive required-open count. `unknown` may have zero open obligations
-because limitations can prevent a ready verdict independently of that count.
-Every decrease must name that many distinct, verified required obligations;
-an obligation cannot count again within an entry or in a later observation.
-No historical open count can exceed the ledger's required-obligation count.
-The retained history is checked for consistency with that ledger, not
-authenticated as a series of complete historical ledgers. Original entries
-remain in the report snapshot when these checks fail.
-
-For each operation and call kind, every retained success/error-code variant
-must occur on both CLI and MCP. Repeated observations and their Evidence stay
-in the report snapshot; drift findings cite the complete group and its sequence
-numbers. Equal repeat counts and one-to-one run pairing are not claimed: the
-input has no identity linking an individual CLI attempt to an MCP attempt.
-Differing transport status is checked on each observation separately.
-
-## Fixtures
-
-The static-analysis journeys use source-owned, redistributable fixtures:
-
-- `build/conformance/c`, built from `tests/conformance/c/fixture.c`, with stable
-  symbols and strings;
-- `tests/conformance/readiness/javascript-cli`, which exposes prompts,
-  alternate-screen behavior, configuration precedence, child process,
-  persistence, loopback HTTP, and signal teardown to static reconstruction;
-- `tests/conformance/readiness/electron`, which exposes main, preload,
-  renderer, utility, IPC, renderer restart, blocked shell effect, and deep-link
-  surfaces to static analysis.
-
-The separate `RECONSTRUCTION_READINESS_EXAMPLE` supplies synthetic incomplete
-reconstruction, broken-runtime, authority, comparison, cleanup, and closure
-observations. Its semantic tests preserve malformed-Evidence rejection,
-fail-closed stage results, contradiction handling, repeated CLI/MCP outcomes,
-and closure-history consistency. Run those source tests independently:
-
-```sh
-npm run test:local -- tests/conformance/readiness/report/reconstructionReadiness.test.ts
-```
-
-Passing evaluator tests does not establish real-provider or fixture runtime
-behavior. Use the applicable [real-toolchain lanes](testing.md#real-toolchain-verification-lanes)
-for those claims.
+Bộ đánh giá từ chối hoặc giữ lại báo cáo tổng hợp đạt chuẩn khi:
+- một năng lực có giới hạn bỏ qua các giới hạn số hiệu dụng của nó;
+- một fixture thiếu chính xác một luồng tương thích được chọn;
+- một provider không tương thích hoặc không khả dụng được gọi;
+- một lỗi CLI có kiểu thoát với mã 0, hoặc một lỗi MCP báo cáo thành công;
+- hành vi đồng thời sử dụng so sánh toàn phần;
+- việc cắt ngắn, mất ổn định, thẩm quyền không khả dụng hoặc mâu thuẫn được dán nhãn là tương đương;
+- phát lại không tất định, giả mạo/cũ không được phát hiện, hoặc mã băm nguồn dự kiến khác biệt.
