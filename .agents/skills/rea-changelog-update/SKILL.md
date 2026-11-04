@@ -1,22 +1,15 @@
 ---
 name: rea-changelog-update
-description: Prepare or rewrite REA release changelogs and GitHub release notes from pinned Git history, with verified contributor thanks and Release Please synchronization.
+description: Chuẩn bị hoặc viết lại changelog phát hành của REA và ghi chú phát hành GitHub từ lịch sử Git đã ghim, với lời cảm ơn người đóng góp đã được xác minh và đồng bộ hóa Release Please.
 ---
 
-# REA changelog update
+# Cập nhật changelog REA (REA changelog update)
 
-Use this for release-note preparation and contributor attribution. Read
-[docs/releasing.md](../../../docs/releasing.md) from the repository root for
-publication authority and the existing checkpoint checks. This skill prepares
-notes; it does not authorize merging, tagging, or publishing.
+Sử dụng kỹ năng này để chuẩn bị ghi chú phát hành (release notes) và ghi nhận đóng góp (contributor attribution). Đọc [docs/releasing.md](../../../docs/releasing.md) từ thư mục gốc để biết quyền hạn phát hành và các kiểm tra điểm mốc hiện có. Kỹ năng này chỉ chuẩn bị ghi chú; nó không cấp quyền merge, tạo tag hoặc phát hành gói.
 
-## Inventory before prose
+## Kiểm kê trước khi viết (Inventory before prose)
 
-Fetch complete history and tags. Select the published baseline tag from
-`.release-please-manifest.json` on the release PR's **base branch**, and pin that
-branch's exact SHA as the editorial target. REA tags are `rea-agents-VERSION`.
-Use the proposed version, including its prerelease suffix; do not change the
-`always-bump-minor` strategy to imitate OpenClaw's calendar versions.
+Tìm nạp lịch sử và các tag đầy đủ. Chọn tag mốc đã phát hành từ `.release-please-manifest.json` trên **nhánh gốc (base branch)** của PR phát hành, và ghim SHA chính xác của nhánh đó làm mục tiêu biên tập. Các tag REA có định dạng `rea-agents-VERSION`. Sử dụng phiên bản đề xuất, bao gồm cả hậu tố prerelease; không thay đổi chiến lược `always-bump-minor` để bắt chước phiên bản lịch của OpenClaw.
 
 ```bash
 node scripts/release-notes.mjs inventory \
@@ -29,77 +22,32 @@ node scripts/release-notes.mjs record \
   --output /tmp/rea-VERSION.record.md
 ```
 
-Read the inventory, not just the existing bot draft. It includes side-branch
-commits, GitHub-associated PRs whose merge commits are in the range, commit
-authors/co-authors, and confirmed closing issues with their reporters. GitHub
-connections are paginated. Network errors stop generation; rerun into a new
-output file after recovery. Existing output files are never overwritten.
+Đọc bản kiểm kê, không chỉ đọc bản nháp của bot. Nó bao gồm các commit nhánh phụ, PR liên kết trên GitHub có commit merge trong phạm vi, tác giả/đồng tác giả commit và các issue đã đóng được xác nhận cùng người báo cáo. Kết nối GitHub được phân trang. Lỗi mạng sẽ dừng tiến trình; hãy chạy lại vào tệp đầu ra mới sau khi phục hồi. Các tệp đầu ra hiện có tuyệt đối không bị ghi đè.
 
-Unresolved commit identities are retained as names/emails with `user: null`;
-never guess a handle or thank the merger as a substitute. The report preserves
-unknowns. This is a reviewed metadata snapshot, not independent proof that a
-human authored a patch. For unattributed identities, unusual merge strategies,
-backports, reversions, or references that GitHub did not associate, inspect
-the source PRs and diffs and report the limitation. The current collector uses
-confirmed PR-closing relationships for issue-reporter credit; unrelated issue
-mentions are not automatically credited. Do not claim that merely inventoried
-work still ships after a revert.
+Các định danh commit chưa giải quyết được giữ lại dưới dạng tên/email với `user: null`; không bao giờ đoán handle hoặc cảm ơn người merge để thay thế. Báo cáo bảo toàn các điểm chưa xác định. Đây là bản chụp metadata đã được xem xét, không phải bằng chứng độc lập rằng con người đã tạo ra bản vá. Đối với các danh tính không có thông tin, chiến lược merge bất thường, backport, hoàn tác hoặc tham chiếu mà GitHub không liên kết, hãy kiểm tra PR và diff gốc rồi báo cáo giới hạn. Trình thu thập hiện tại sử dụng các mối quan hệ đóng PR đã được xác nhận để ghi nhận công lao của người báo cáo issue; các đề cập issue không liên quan không được tự động ghi nhận. Không khẳng định rằng công việc chỉ mới được kiểm kê vẫn được xuất xưởng sau khi bị revert.
 
-## Write for users and retain credit
+## Viết cho người dùng và giữ nguyên ghi nhận (Write for users and retain credit)
 
-Rewrite only the newest `## [VERSION]` section in `CHANGELOG.md`, preserving its
-version/date/link heading. Use single-line Markdown list items under:
+Chỉ viết lại phần `## [VERSION]` mới nhất trong `CHANGELOG.md`, bảo toàn tiêu đề phiên bản/ngày/liên kết của nó. Sử dụng các mục danh sách Markdown một dòng dưới:
 
-- `### Highlights`: a few release-defining user outcomes; no quota for small releases.
-- `### Changes`: capabilities and meaningful behavior changes.
-- `### Fixes`: reliability, correctness, compatibility, and safety fixes.
-- `### ⚠ BREAKING CHANGES`: retain when applicable, with migrations and original
-  PR/commit references required by the existing checkpoint validator.
+- `### Highlights`: một vài kết quả định hình bản phát hành cho người dùng; không có hạn ngạch cho các bản phát hành nhỏ.
+- `### Changes`: các khả năng mới và thay đổi hành vi có ý nghĩa.
+- `### Fixes`: các bản sửa lỗi về độ tin cậy, tính đúng đắn, khả năng tương thích và an toàn.
+- `### ⚠ BREAKING CHANGES`: giữ lại khi áp dụng, kèm theo hướng dẫn di chuyển (migrations) và tham chiếu PR/commit gốc được yêu cầu bởi trình xác thực điểm mốc hiện có.
 
-Group related work by analyst workflow or user impact. Explain the resulting
-behavior in short, concrete entries. Highlights summarize the release; avoid
-repeating their full descriptions in Changes. Internal cleanup, tests, CI, and
-routine documentation generally belong only in the provenance file. Read ambiguous PRs/diffs before making
-claims. Distinguish simulated-provider checks from real-provider verification.
+Gom nhóm công việc liên quan theo quy trình làm việc của nhà phân tích hoặc tác động đến người dùng. Giải thích hành vi kết quả trong các mục ngắn gọn, cụ thể. Highlights tóm tắt bản phát hành; tránh lặp lại mô tả đầy đủ của chúng trong Changes. Dọn dẹp nội bộ, kiểm thử, CI và tài liệu định kỳ thường chỉ thuộc về tệp nguồn gốc (provenance file). Đọc các PR/diff mơ hồ trước khi đưa ra nhận định. Phân biệt giữa các kiểm tra provider mô phỏng và xác minh provider thực tế.
 
-Credit each represented contribution once in the public notes with its link
-and `Thanks @...` for its verified human author, known co-authors, and confirmed
-closing-issue reporters. Grouping preserves all those credits in one line.
-When Highlights, detailed entries or migrations reference the same work,
-put its thanks in one of those entries, not all of them. Include issue links.
-Direct-commit bullets carry the commit link and known human credit.
-Exclude GitHub bots and known agent accounts. REA's observed Anthropic, Cursor,
-Codex, and Copilot co-author trailers resolve to `@claude`, `@cursoragent`,
-`@codex`, and `@Copilot` with GitHub type `User`; the credit policy excludes
-them while retaining their metadata.
-At the REA maintainer's request, omit `@morluto` self-thanks while preserving
-authorship in the inventory. Other human contributors remain eligible.
-Use explicit GitHub links for cross-repository references to avoid ambiguous
-`#NNN` numbers. Unknown handles stay unknown; they are not fabricated credit.
+Ghi nhận mỗi đóng góp đại diện một lần duy nhất trong ghi chú công khai kèm liên kết của nó và `Thanks @...` cho tác giả con người đã được xác minh, các đồng tác giả đã biết và người báo cáo issue đã đóng được xác nhận. Việc gom nhóm giữ lại toàn bộ các ghi nhận đó trên một dòng. Khi Highlights, các mục chi tiết hoặc hướng dẫn di chuyển tham chiếu đến cùng một công việc, hãy đặt lời cảm ơn vào một trong các mục đó, không phải tất cả. Bao gồm các liên kết issue. Các gạch đầu dòng commit trực tiếp mang liên kết commit và ghi nhận con người đã biết. Loại trừ bot GitHub và các tài khoản tác tử đã biết. Các trailer đồng tác giả Anthropic, Cursor, Codex và Copilot quan sát được của REA giải quyết thành `@claude`, `@cursoragent`, `@codex` và `@Copilot` với loại GitHub `User`; chính sách ghi nhận loại trừ chúng trong khi vẫn giữ nguyên metadata của chúng. Theo yêu cầu của người duy trì REA, bỏ qua việc tự cảm ơn `@morluto` trong khi vẫn bảo toàn quyền tác giả trong bản kiểm kê. Các cộng tác viên con người khác vẫn đủ điều kiện. Sử dụng liên kết GitHub rõ ràng cho các tham chiếu liên kho lưu trữ để tránh các số `#NNN` mơ hồ. Các handle chưa biết vẫn giữ nguyên là chưa biết; chúng không phải là sự ghi nhận bịa đặt.
 
-Append the generated `record --summary` provenance link verbatim at the end
-of this release. The linked inventory accounts for every discovered in-range
-PR and direct contribution, including internal work omitted from the prose.
-Do not paste the full `record` output into public notes: it duplicates thanks
-and obscures the user-facing changes. Full records remain available for review.
-Do not hand-edit generated credits to make validation pass. Refresh the inventory
-when product history changes; a prose-only correction can reuse the snapshot.
+Nối liên kết nguồn gốc `record --summary` được tạo nguyên văn vào cuối bản phát hành này. Bản kiểm kê được liên kết giải trình cho mọi PR và đóng góp trực tiếp trong phạm vi được phát hiện, bao gồm cả công việc nội bộ bị bỏ sót trong văn bản. Không dán toàn bộ đầu ra `record` vào ghi chú công khai: nó làm trùng lặp lời cảm ơn và che khuất các thay đổi hướng tới người dùng. Các bản ghi đầy đủ vẫn có sẵn để xem xét. Không chỉnh sửa thủ công các ghi nhận được tạo tự động để vượt qua xác thực. Làm mới bản kiểm kê khi lịch sử sản phẩm thay đổi; việc sửa chữa văn bản thuần túy có thể tái sử dụng bản chụp.
 
-## Finalize with Release Please
+## Hoàn thiện với Release Please (Finalize with Release Please)
 
-Before changing the live release PR, have authorization for that PR update.
-Local preparation and validation can proceed independently.
+Trước khi thay đổi PR phát hành trực tiếp, hãy đảm bảo có ủy quyền cho bản cập nhật PR đó. Việc chuẩn bị và xác thực cục bộ có thể tiến hành độc lập.
 
-1. Add `rea:release-notes-finalized` to the selected open release PR **before**
-   editing its branch/body. Main proposal pushes respect this label. This is
-   our workflow guard, not Release Please's `autorelease: snooze` mechanism.
-   A proposal already running must finish before editing. Do not dispatch
-   manual preparation over finalized notes.
-2. On that release branch, save the reviewed inventory as
-   `docs/releases/VERSION.contributions.json`. This is durable public release
-   provenance, not a temporary planning file. Do not add credentials or local
-   environment dumps. Keep the existing version artifacts aligned.
-3. Run the existing checkpoint validator and the new checker:
+1. Thêm nhãn `rea:release-notes-finalized` vào PR phát hành đang mở được chọn **trước khi** chỉnh sửa nhánh/nội dung của nó. Các lượt push đề xuất chính tôn trọng nhãn này. Đây là lớp bảo vệ quy trình làm việc của chúng tôi, không phải cơ chế `autorelease: snooze` của Release Please. Một đề xuất đang chạy phải kết thúc trước khi chỉnh sửa. Không gửi bản chuẩn bị thủ công đè lên các ghi chú đã hoàn thiện.
+2. Trên nhánh phát hành đó, lưu bản kiểm kê đã xem xét dưới dạng `docs/releases/VERSION.contributions.json`. Đây là nguồn gốc phát hành công khai lâu dài, không phải tệp lập kế hoạch tạm thời. Không thêm thông tin xác thực hoặc kết xuất môi trường cục bộ. Giữ cho các hiện vật phiên bản hiện có được căn chỉnh.
+3. Chạy trình xác thực điểm mốc hiện có và trình kiểm tra mới:
 
    ```bash
    node scripts/release-notes.mjs check \
@@ -109,27 +57,11 @@ Local preparation and validation can proceed independently.
      --output /tmp/rea-VERSION.notes.md
    ```
 
-   The checker supports inline PR bodies, including their surrounding metadata,
-   up to GitHub's 65,536-character limit. It fails on larger notes rather than
-   truncating credit; Release Please's overflow-link bodies are not integrated.
+   Trình kiểm tra hỗ trợ nội dung PR nội tuyến, bao gồm cả metadata xung quanh của chúng, lên đến giới hạn 65.536 ký tự của GitHub. Nó báo lỗi trên các ghi chú lớn hơn thay vì cắt bớt ghi nhận; nội dung liên kết tràn của Release Please không được tích hợp.
 
-4. Update the release PR body with the rendered section while preserving its
-   Release Please header/footer and component/version structure. Use a body
-   file for `gh pr edit --body-file`; changing only `CHANGELOG.md` does not
-   change Release Please's release body. Push only authorized changes.
-5. Freshly fetch the PR body to a file and run `check --pr-body FILE`. Review
-   the complete diff and wait for current CI. Publication checks the body
-   again before release creation. Avoid further body edits while publishing.
+4. Cập nhật nội dung PR phát hành với phần đã render trong khi vẫn bảo toàn header/footer và cấu trúc thành phần/phiên bản của Release Please. Sử dụng tệp nội dung cho `gh pr edit --body-file`; chỉ thay đổi `CHANGELOG.md` sẽ không thay đổi nội dung phát hành của Release Please. Chỉ push các thay đổi được ủy quyền.
+5. Tìm nạp mới nội dung PR vào một tệp và chạy `check --pr-body FILE`. Xem lại toàn bộ diff và chờ CI hiện tại. Quá trình phát hành sẽ kiểm tra lại nội dung trước khi tạo bản phát hành. Tránh chỉnh sửa nội dung thêm trong khi đang phát hành.
 
-The finalization label freezes bot refreshes, not main. New product changes
-after the inventory target require refreshing the notes before publication.
-The workflow checks target ancestry and allows only release metadata paths
-after that target. It also requires the inventory target to equal the reviewed
-merge's first parent, so intervening main commits require a fresh inventory.
-Review diffs within the allowed release metadata paths too: the path guard does
-not prove that package dependency/script edits are version-only changes.
-To resume automatic proposals, remove the finalization label and let the bot
-regenerate; expect editorial changes to be replaced.
+Nhãn hoàn thiện đóng băng việc làm mới của bot, không phải nhánh main. Các thay đổi sản phẩm mới sau mục tiêu kiểm kê yêu cầu làm mới các ghi chú trước khi phát hành. Quy trình làm việc kiểm tra phả hệ mục tiêu và chỉ cho phép các đường dẫn metadata phát hành sau mục tiêu đó. Nó cũng yêu cầu mục tiêu kiểm kê phải bằng commit cha đầu tiên của merge đã xem xét, do đó các commit main xen vào yêu cầu một bản kiểm kê mới. Xem xét các diff trong các đường dẫn metadata phát hành được phép: bảo vệ đường dẫn không chứng minh rằng các chỉnh sửa phụ thuộc gói/script chỉ là thay đổi phiên bản. Để tiếp tục các đề xuất tự động, hãy xóa nhãn hoàn thiện và để bot tạo lại; các thay đổi biên tập sẽ bị thay thế.
 
-Existing releases without a contribution inventory retain their current
-publication path. Never retag or republish a package to correct release prose.
+Các bản phát hành hiện có không có bản kiểm kê đóng góp sẽ giữ nguyên đường dẫn phát hành hiện tại của chúng. Tuyệt đối không bao giờ tạo lại tag hoặc phát hành lại một gói chỉ để sửa văn bản phát hành.

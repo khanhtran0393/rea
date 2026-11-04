@@ -1,65 +1,23 @@
-# Measurement and CI checks
+# Đo lường và kiểm tra CI (Measurement and CI checks)
 
-## Equivalent completed work
+## Công việc hoàn thành tương đương (Equivalent completed work)
 
-Record the source/workflow SHA, command, test identities and counts, skips,
-assertions or output contract, exit status, coverage scope and thresholds,
-toolchain/provider versions, host resources, and prepared artifacts. Inspect
-both the child result and its report: a profiling wrapper may exit successfully
-after the measured command failed. Focused tests can pass while global coverage
-thresholds fail; describe both rather than calling the command green.
+Ghi lại SHA nguồn/quy trình làm việc, lệnh, danh tính và số lượng bài kiểm thử, các trường hợp bỏ qua, assertion hoặc hợp đồng đầu ra, trạng thái thoát, phạm vi và ngưỡng bao phủ, phiên bản chuỗi công cụ/provider, tài nguyên máy chủ và các hiện vật đã chuẩn bị. Kiểm tra cả kết quả con và báo cáo của nó: một wrapper định hình (profiling wrapper) có thể thoát thành công sau khi lệnh được đo lường thất bại. Các bài kiểm thử tập trung có thể vượt qua trong khi ngưỡng bao phủ toàn cục thất bại; hãy mô tả cả hai thay vì chỉ gọi lệnh là màu xanh.
 
-Measure wall time, user/system CPU, and peak process-family memory for relevant
-completed tasks. Parent-only RSS misses workers and their children. On Linux,
-summed RSS can double-count shared pages; report RSS/PSS semantics, sampling
-interval, missing samples, and observed cleanup limits. Use equivalent host
-tools elsewhere. State unknown costs, including agent tokens; fewer log bytes
-alone prove neither fewer tokens nor faster tests.
+Đo lường thời gian thực tế (wall time), CPU người dùng/hệ thống và bộ nhớ đỉnh của nhóm tiến trình cho các tác vụ hoàn thành liên quan. RSS chỉ tính riêng cho tiến trình cha sẽ bỏ sót các worker và con của chúng. Trên Linux, tổng RSS có thể đếm trùng lặp các trang dùng chung; hãy báo cáo ngữ nghĩa RSS/PSS, khoảng thời gian lấy mẫu, các mẫu bị thiếu và các giới hạn dọn dẹp quan sát được. Sử dụng các công cụ máy chủ tương đương ở nơi khác. Nêu rõ các chi phí chưa biết, bao gồm cả token tác tử; chỉ riêng việc giảm dung lượng log byte không chứng minh được việc sử dụng ít token hơn cũng như bài kiểm thử chạy nhanh hơn.
 
-Separate cold execution, warm build/file caches, and warm runtime caches.
-Use repeated or alternating runs when variance affects the decision, with
-enough observations to distinguish the proposed benefit from noise. Keep
-workload, instrumentation, and host conditions comparable; record interference.
-A run with fewer tests, early rejection, lost coverage, or a different runner
-does not prove suite acceleration. CI-wide claims need end-to-end measurements,
-not an extrapolation from one improved family.
+Tách biệt việc thực thi khi cold, bộ nhớ đệm build/tệp khi warm và bộ nhớ đệm runtime khi warm. Sử dụng các lần chạy lặp lại hoặc luân phiên khi phương sai ảnh hưởng đến quyết định, với đủ số lượng quan sát để phân biệt lợi ích đề xuất với nhiễu. Giữ khối lượng công việc, instrumentation và điều kiện máy chủ ở mức có thể so sánh được; ghi lại sự can thiệp. Một lần chạy với ít bài kiểm thử hơn, từ chối sớm, mất độ bao phủ hoặc một runner khác không chứng minh được sự tăng tốc của bộ kiểm thử. Các khẳng định trên toàn CI cần các phép đo đầu cuối, không phải ngoại suy từ một họ được cải thiện đơn lẻ.
 
-## Workflow, caches, and shared artifacts
+## Quy trình làm việc, bộ nhớ đệm và hiện vật dùng chung (Workflow, caches, and shared artifacts)
 
-Trace each reused result from producer to consumers and identify its lifetime.
-Check key/input coverage against the actual file inventory and result-affecting
-configuration, environment, generated data, tool versions, and host state.
-Exercise an affected input change to prove invalidation; exercise an irrelevant
-change to support reuse where useful. Cache deterministic preparation and
-static analysis only when their inputs fully describe the result.
+Lần vết mỗi kết quả được tái sử dụng từ producer đến các consumer và xác định vòng đời của nó. Kiểm tra độ bao phủ khóa/đầu vào so với kho kiểm kê tệp thực tế và cấu hình ảnh hưởng đến kết quả, môi trường, dữ liệu được tạo, phiên bản công cụ và trạng thái máy chủ. Thực thi một thay đổi đầu vào bị ảnh hưởng để chứng minh việc vô hiệu hóa; thực thi một thay đổi không liên quan để hỗ trợ việc tái sử dụng khi hữu ích. Chỉ lưu bộ nhớ đệm cho quá trình chuẩn bị tất định và phân tích tĩnh khi các đầu vào của chúng mô tả đầy đủ kết quả.
 
-Verify downloaded artifacts match the expected revision, platform, runtime,
-and schema. Check restore misses, failed/partial producers, stale reports,
-removed output files, and consumers after producer failures. Shared writers
-need output ownership or locks; tests need isolated state, not an unnecessary
-global lock. Worker counts do not bound children spawned within each test.
-Preserve intentionally concurrent scenarios while bounding unrelated batches.
+Xác minh các hiện vật đã tải xuống khớp với phiên bản, nền tảng, runtime và lược đồ dự kiến. Kiểm tra lỗi khôi phục, các producer thất bại/từng phần, báo cáo cũ, tệp đầu ra bị xóa và các consumer sau khi producer thất bại. Các bên ghi dùng chung cần quyền sở hữu đầu ra hoặc khóa (lock); các bài kiểm thử cần trạng thái biệt lập, không phải khóa toàn cục không cần thiết. Số lượng worker không giới hạn các tiến trình con được sinh ra trong mỗi bài kiểm thử. Bảo toàn các kịch bản cố ý đồng thời trong khi giới hạn các lô không liên quan.
 
-Check matrix expansion and all job pages before saying CI passed. Inspect
-required gates after failed, cancelled, and skipped dependencies. `always()`
-alone does not preserve failures; inspect the aggregation logic. Test/report
-uploads should retain available diagnostics after failure, while absent or
-malformed required results must fail closed. Do not demand an optional report
-from a lane intentionally excluded by the selector.
+Kiểm tra việc mở rộng ma trận và tất cả các trang công việc trước khi kết luận CI đã vượt qua. Kiểm tra các cổng bắt buộc sau các phần phụ thuộc bị lỗi, bị hủy và bị bỏ qua. Chỉ riêng `always()` không bảo toàn được các lỗi; hãy kiểm tra logic tổng hợp. Việc tải lên bài kiểm thử/báo cáo phải giữ lại các chẩn đoán có sẵn sau khi thất bại, trong khi các kết quả bắt buộc bị thiếu hoặc sai định dạng phải chuyển sang trạng thái đóng/lỗi (fail closed). Không yêu cầu một báo cáo tùy chọn từ một luồng đã bị loại trừ có chủ ý bởi bộ chọn.
 
-## Runner waits and console noise
+## Thời gian chờ runner và nhiễu console (Runner waits and console noise)
 
-Use per-job and per-step timestamps where available. Workflow creation to job
-start includes dependencies and other delays; it is not necessarily runner
-queue time. Identify when the job became eligible before attributing waits to
-runner capacity. If eligibility/queue timestamps are unavailable, report the
-combined delay and unknown split. Compare equivalent lanes and runner types
-across enough runs; a single busy runner is not a workflow regression.
+Sử dụng dấu thời gian cho từng công việc và từng bước nếu có. Từ lúc tạo quy trình làm việc đến lúc bắt đầu công việc bao gồm các phụ thuộc và các độ trễ khác; nó không nhất thiết là thời gian xếp hàng của runner. Xác định thời điểm công việc đủ điều kiện trước khi quy thời gian chờ cho dung lượng runner. Nếu dấu thời gian đủ điều kiện/hàng đợi không có sẵn, hãy báo cáo độ trễ kết hợp và phần chia tách chưa xác định. So sánh các luồng tương đương và loại runner trên đủ số lần chạy; một runner bận rộn đơn lẻ không phải là sự suy giảm quy trình làm việc.
 
-For console reductions, retain checker exit codes, actionable errors, useful
-summary counts, and complete machine-readable artifacts. Verify authored code
-remains in the actual checker inventory when excluding generated outputs.
-Introduce an authored error as a control; it must still fail. An ignore pattern
-can hide real source as well as noise. Show that cached reports are restored,
-stale successful reports cannot mask current failures, and report parse errors
-remain failures. Measure readability or byte reduction separately from runtime.
+Đối với việc giảm tải console, hãy giữ lại mã thoát của trình kiểm tra, các lỗi có thể hành động, số lượng tóm tắt hữu ích và các hiện vật hoàn chỉnh có thể đọc được bằng máy. Xác minh mã tác giả vẫn thất bại một cách hữu ích trước khi tắt tiếng các cảnh báo hoặc hợp nhất các thông báo tiến trình. Không triệt tiêu các báo cáo phân tích hoặc xóa các bản chụp chẩn đoán chỉ để làm cho log ngắn hơn.

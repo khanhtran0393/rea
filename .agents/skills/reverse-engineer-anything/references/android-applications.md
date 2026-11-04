@@ -1,63 +1,15 @@
-# Android application artifacts
+# Hiện vật ứng dụng Android (Android application artifacts)
 
-Use the connected server's advertised Android tools. Repository main and npm
-4.1.0 include this family. A skill installation alone cannot add it to an
-older server.
+Sử dụng các công cụ Android được quảng bá của server đã kết nối. Nhánh main của repository và npm 4.1.0 bao gồm nhóm công cụ này. Chỉ cài đặt skill đơn thuần không thể thêm nhóm này vào một server cũ hơn.
 
-Start with `inspect_android_package` on the caller's APK path for package
-identity, manifest declarations, coverage, and inline Evidence. Use
-`search_android_classes` to find candidates, `inspect_android_class` for one
-class's members, `inspect_android_method` for decompilation, and
-`trace_android_references` for incoming static references. Each call takes its
-own APK path and explicit selectors; do not open a native session first.
-Choose an `overload_index` from the class inventory when methods are ambiguous
-instead of guessing.
+Bắt đầu với `inspect_android_package` trên đường dẫn tệp APK của bên gọi để lấy danh tính gói, các khai báo manifest, độ bao phủ và Evidence nội tuyến. Sử dụng `search_android_classes` để tìm kiếm các lớp ứng viên, `inspect_android_class` cho các thành viên của một lớp, `inspect_android_method` để dịch ngược mã, và `trace_android_references` cho các tham chiếu tĩnh hướng vào (incoming static references). Mỗi lệnh gọi nhận đường dẫn APK riêng và các bộ chọn (selectors) rõ ràng; không mở một phiên native trước. Chọn một `overload_index` từ danh mục kiểm kê của lớp khi các phương thức bị trùng tên/mơ hồ thay vì đoán mò.
 
-For JNI implementations, discover `inspect_android_jni_bindings`. Select raw
-DEX class/method identities and optional descriptors, ABI or logical library
-paths. Prefer `detail: "summary"`; complete Evidence remains retained and
-`android-jni` views page declarations, libraries, candidates or binding rows
-with exact fields. Global native-pair ambiguity survives class selection.
-Preserve slot/relocation provenance and source coverage: matched means observed
-candidate presence; partial scans do not establish uniqueness or absence.
-This reads DEX/ELF bytes without loading the APK into the decompiler or executing
-target code. Runtime registration and loading remain unknown. See the
-[JNI guide](https://github.com/morluto/rea/blob/main/docs/android-analysis.md#link-native-declarations-to-jni-candidates).
+Đối với các triển khai JNI, khám phá `inspect_android_jni_bindings`. Chọn các danh tính lớp/phương thức DEX thô và bộ mô tả (descriptors) tùy chọn, ABI hoặc đường dẫn thư viện logic. Ưu tiên `detail: "summary"`; Evidence đầy đủ vẫn được lưu giữ và các chế độ xem `android-jni` phân trang các khai báo, thư viện, ứng viên hoặc các hàng liên kết (binding rows) với các trường chính xác. Tính mơ hồ của cặp native toàn cục vẫn tồn tại sau khi chọn lớp. Bảo toàn nguồn gốc vị trí/tái định vị (slot/relocation provenance) và phạm vi nguồn: trạng thái matched có nghĩa là sự hiện diện của ứng viên được quan sát; việc quét một phần không xác lập tính duy nhất hoặc sự vắng mặt. Thao tác này đọc các byte DEX/ELF mà không cần nạp APK vào bộ dịch ngược hoặc thực thi mã mục tiêu. Quá trình đăng ký và nạp runtime vẫn là chưa xác định. Xem [hướng dẫn JNI](https://github.com/morluto/rea/blob/main/docs/android-analysis.md#link-native-declarations-to-jni-candidates).
 
-For an R8/ProGuard release build with its `mapping.txt`, pass the absolute
-`mapping_path` to `inspect_android_class` or `inspect_android_method`. Prefer
-`detail: "summary"` to receive normalized symbols or the selected body without
-duplicate raw class metadata. Complete Evidence stays retained under the linked
-parent ID and can be exported; CLI summary delivery requires `--evidence_output`.
-Omitted or complete detail preserves the full inline response. Keep
-selecting by observed names; the separate `mapping` block reports each symbol
-as `mapped`, `ambiguous` or `unmapped` after checking DEX types and prototypes.
-REA does not verify that the mapping belongs to the APK build.
+Đối với bản dựng phát hành R8/ProGuard có tệp `mapping.txt`, hãy truyền đường dẫn tuyệt đối `mapping_path` vào `inspect_android_class` hoặc `inspect_android_method`. Ưu tiên `detail: "summary"` để nhận các ký hiệu đã chuẩn hóa hoặc thân hàm đã chọn mà không bị trùng lặp metadata lớp thô. Evidence đầy đủ vẫn được lưu giữ dưới ID cha được liên kết và có thể được xuất ra; việc truyền tóm tắt qua CLI yêu cầu cờ `--evidence_output`. Bỏ qua hoặc chọn detail complete sẽ bảo toàn toàn bộ phản hồi nội tuyến. Tiếp tục chọn theo các tên đã quan sát; khối `mapping` riêng biệt báo cáo từng ký hiệu là `mapped`, `ambiguous` hoặc `unmapped` sau khi kiểm tra các kiểu DEX và nguyên mẫu (prototypes). REA không tự động xác minh rằng tệp mapping thuộc về bản dựng APK đó.
 
-The provider requires a separately supplied headless JADX MCP JAR 0.7.1 and
-Java 17 or newer. `REA_JADX_MCP_JAR` selects the absolute JAR path; `JAVA_HOME`
-can select Java. Use `rea doctor --provider jadx --json` to check the JADX
-configuration and obtain remediation for missing prerequisites. Java and the
-headless JADX MCP JAR remain caller-supplied; REA setup does not install or
-configure them. Configuration readiness does not establish successful analysis
-of a particular APK.
+Provider yêu cầu một tệp JAR JADX MCP headless 0.7.1 được cung cấp riêng biệt và Java 17 trở lên. Biến `REA_JADX_MCP_JAR` chọn đường dẫn tệp JAR tuyệt đối; `JAVA_HOME` có thể chọn Java. Sử dụng `rea doctor --provider jadx --json` để kiểm tra cấu hình JADX và nhận hướng dẫn khắc phục cho các điều kiện tiên quyết bị thiếu. Java và JAR JADX MCP headless vẫn do bên gọi tự cung cấp; quá trình thiết lập REA không cài đặt hoặc cấu hình chúng. Tính sẵn sàng về cấu hình không đảm bảo việc phân tích thành công một tệp APK cụ thể.
 
-Linux and macOS use the POSIX owned-process boundary. Windows x64 requires the
-matching bundled native controls and uses an owned Job Object with bidirectional
-stdio. A full JDK, including `jdk.compiler`, is required on every host; Windows
-`JAVA_HOME` selects `bin\java.exe`. Consult the Android guide for actual host
-verification coverage. Calls use one worker and provider deadlines; optional
-`REA_JADX_HEAP_MIB` selects the JVM heap and `REA_JADX_OPERATION_TIMEOUT_MS`
-the per-operation deadline (integer milliseconds from 1 to 2147483647, default
-120000). To change that deadline on a running MCP server, set
-`jadx.operation_timeout_ms` through `update_analysis_settings`, then retry after
-work and cleanup settle. Newly accepted operations use the override; accepted
-work keeps its budget. Changing the launch environment requires a new process.
-The MCP client's tool timeout must also allow the selected deadline. The APK is never launched,
-and no emulator is required.
+Linux và macOS sử dụng ranh giới tiến trình sở hữu POSIX. Windows x64 yêu cầu các điều khiển native đi kèm phù hợp và sử dụng Job Object sở hữu với stdio hai chiều. Một bản JDK đầy đủ, bao gồm `jdk.compiler`, là bắt buộc trên mọi máy chủ; biến `JAVA_HOME` trên Windows trỏ đến `bin\java.exe`. Tham khảo hướng dẫn Android để biết phạm vi xác minh máy chủ thực tế. Các lệnh gọi sử dụng một worker và thời hạn của provider; tùy chọn `REA_JADX_HEAP_MIB` chọn heap JVM và `REA_JADX_OPERATION_TIMEOUT_MS` chọn thời hạn cho mỗi thao tác (số nguyên mili-giây từ 1 đến 2147483647, mặc định 120000). Để thay đổi thời hạn đó trên một server MCP đang chạy, hãy thiết lập `jadx.operation_timeout_ms` thông qua `update_analysis_settings`, sau đó thử lại sau khi công việc và việc dọn dẹp đã ổn định. Các thao tác mới được chấp nhận sẽ sử dụng giá trị ghi đè; công việc đã được chấp nhận vẫn giữ nguyên ngân sách ban đầu của nó. Việc thay đổi môi trường khởi chạy yêu cầu một tiến trình mới. Thời gian chờ công cụ của MCP client cũng phải cho phép thời hạn đã chọn. Tệp APK không bao giờ được khởi chạy và không yêu cầu trình giả lập.
 
-Manifest entries and decompiled text are static observations, not execution or
-policy enforcement. Incoming references are recovered static relationships;
-reflection, dynamic loading, and unresolved calls remain unknown. Preserve
-artifact digests, locations, diagnostics, and incomplete coverage. For archive
-members rather than code analysis, use `open_binary` and `inspect_artifact`.
+Các mục trong Manifest và văn bản đã dịch ngược là các quan sát tĩnh, không phải là thực thi thực tế hoặc thực thi chính sách. Các tham chiếu hướng vào là các mối quan hệ tĩnh được khôi phục; reflection, nạp động và các lệnh gọi chưa được phân giải vẫn là chưa xác định. Bảo toàn mã băm hiện vật, vị trí, chẩn đoán và phạm vi bao phủ chưa hoàn chỉnh. Đối với các thành viên kho lưu trữ thay vì phân tích mã, hãy sử dụng `open_binary` và `inspect_artifact`.

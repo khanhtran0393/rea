@@ -1,254 +1,91 @@
-# JavaScript and Electron application artifacts
+# Hiện vật ứng dụng JavaScript và Electron (JavaScript and Electron application artifacts)
 
-For captured or bundled JavaScript that needs readable source recovery, use
-`recover_javascript_sources` with an absolute `path` and absent
-`output_directory`. Supply related runtime/shared/lazy files in
-`additional_paths` when advertised, then analyze the returned `analysis_input`
-directory together. Each input retains its own snapshot, digest and byte-range
-provenance; inputs and recovered code are never executed. Recovery requires a
-caller-supplied Wakaru on Linux x64; see [the recovery guide](https://github.com/morluto/rea/blob/main/docs/javascript-recovery.md).
+Đối với JavaScript được thu thập hoặc đóng gói cần khôi phục mã nguồn có thể đọc được, hãy sử dụng `recover_javascript_sources` với `path` tuyệt đối và để trống `output_directory`. Cung cấp các tệp runtime/shared/lazy liên quan trong `additional_paths` khi được quảng bá, sau đó cùng phân tích thư mục `analysis_input` được trả về. Mỗi đầu vào giữ lại bản chụp (snapshot), mã băm (digest) và nguồn gốc phạm vi byte của riêng nó; các đầu vào và mã được khôi phục không bao giờ được thực thi. Quá trình khôi phục yêu cầu Wakaru do bên gọi cung cấp trên Linux x64; xem [hướng dẫn khôi phục](https://github.com/morluto/rea/blob/main/docs/javascript-recovery.md).
 
-Use `analyze_javascript_application` directly on the operator-supplied ASAR or
-extracted tree. When the question concerns known source paths and the connected
-schema advertises `source_paths`, select exact inventoried paths such as
-`["package.json", "main.js", "preload.js"]`. Include supporting manifests or
-source maps explicitly; dependencies are not implicitly analyzed. REA retains
-the complete artifact inventory and identity but reads source text and analyzes
-only selected files. The result and summary record `source_selection`; files
-outside scope and their relationships remain unknown, so partial application
-coverage does not mean the selected source failed. Use repeated `--source-path`
-on either static application CLI route, or `--source-paths-json` with a JSON
-file for selections too long for one command line. Omit the selection when the
-question requires complete application analysis; `source_paths: []` is invalid,
-not an unfiltered request. `detail: "summary"` reduces delivery
-and does not by itself reduce analysis work.
+Sử dụng `analyze_javascript_application` trực tiếp trên gói ASAR hoặc cây thư mục đã giải nén do người vận hành cung cấp. Khi câu hỏi liên quan đến các đường dẫn mã nguồn đã biết và lược đồ được kết nối có quảng bá `roots`, hãy cung cấp các đường dẫn tương đối của chúng trong `roots: ["src/auth", "src/billing"]` để tập trung đồ thị ứng dụng vào các hệ thống con đó. Đồ thị được trả về bảo toàn các đường dẫn chưa giải quyết được và các mối quan hệ đa vai trò; nó không lọc theo mô-đun hoặc mở rộng ra ngoài cây thư mục đã cung cấp.
 
-ASAR header/index admission defaults to 16 MiB / 16777216 bytes;
-an admission error names `asar.max_header_bytes` and its bounds (at most
-256 MiB). Call `update_analysis_settings` with that setting, `action: "set"`
-and enough bytes, then retry the same full-archive request. No inspection or
-REA restart is required. `REA_ASAR_MAX_HEADER_BYTES` seeds future REA processes.
-`source_paths`, `detail`, and `max_heap_mb` do not bypass or raise header admission.
-Runtime JavaScript timeout/heap defaults are also editable; explicit per-call
-`analysis_timeout_ms` and `max_heap_mb` take precedence.
+Khi phân tích một gói web đã thu thập hoặc tệp JavaScript độc lập, hãy sử dụng `analyze_web_bundle`. Công cụ này xây dựng một đồ thị ứng dụng tương thích từ các tệp JavaScript, source map và tài nguyên liên quan được cung cấp, mà không yêu cầu cấu trúc gói ASAR hoặc cây thư mục dự án hoàn chỉnh.
 
-Exact `#alias` specifiers resolve through the importer's
-enclosing package `imports` map to package-local files; nested `node_modules`
-packages use their own map. Wildcard, recursive, and external-package import
-targets stay unresolved with that limitation. When size is unknown or large and the connected schema advertises
-`detail`, request `detail: "summary"`. This returns an `inspect_analysis_view`
-Evidence record with a distinct ID and a `normalized_result.parent_evidence_id`
-for the complete retained application analysis. Source-map contents are part of
-that static analysis. Read findings, coverage, limitations and unknowns, then
-follow a specific unanswered question. Older servers without `detail` return
-the complete application Evidence inline when it fits.
+Đối với các ứng dụng Electron, hãy bắt đầu bằng việc kiểm tra các cầu chì (fuses) đóng gói bằng `inspect_electron_fuses` để xác định các cờ bảo mật và khả năng gỡ lỗi được cấu hình tại thời điểm biên dịch, chẳng hạn như `EnableNodeCliInspectArguments` hoặc `RunAsNode`.
 
-When the connected schema advertises `max_heap_mb` and `analysis_timeout_ms`,
-these select the isolated source analyzer's old-space heap and per-source
-deadline. Defaults are 1024 MiB and 300000 ms. They do not change the MCP
-process heap or the client's tool deadline. For a host timeout without REA
-output, use the [deadline recovery guide](connection-and-recovery.md#distinguish-client-and-server-deadlines)
-instead of raising the server budget. A Bun-hosted REA does not enforce the heap choice; on Windows it
-instead limits the analyzer's committed memory to that choice plus a 512 MiB
-runtime reserve.
-Resource-limited analyses preserve completed static facts and
-report partial semantic coverage with specific unknown scopes; this does not
-mean the source is malformed. Inspect those limits before retrying a source.
-When expanded relationships exceed the parent's available memory, inspect the
-file's modules item view for retained `static_analysis` and
-`semantic_module_analysis`. Their facts remain available even when graph links
-are unknown. Cumulative result exhaustion can stop analysis before every file
-is examined; the inventory and remaining unknown scopes distinguish that case.
-Timeout or cancellation after source analysis begins retains partial Evidence
-in the same session. A returned `error.details.partial_observation` reference
-can be supplied directly to `inspect_analysis_view`. If the SDK cancels locally, retrieve its recorded ID from
-the Evidence bundle before inspecting the partial analysis.
+## Kiểm kê các ứng viên định tuyến mà không trả về đồ thị ứng dụng (Inventory route candidates without returning the application graph)
 
-## Inventory route candidates without returning the application graph
+Khi lược đồ được quảng bá hỗ trợ `view`, hãy sử dụng `detail: "summary"` với `view: {kind: "javascript-routes", collection: "routes", fields: ["path", "confidence"], limit: 20}`.
+Chế độ xem tương tự cũng hoạt động với `analyze_web_bundle` trên các nguồn được thu thập đã chọn trước đó.
+Evidence nguồn hoàn chỉnh được lưu giữ; hãy sử dụng `parent_evidence_id` của nó với `inspect_analysis_view` để phân trang các trang tiếp theo hoặc chọn các trường bổ sung như `handler_node_id`, `methods` hoặc `middleware`. Lược đồ báo cáo các ứng viên định tuyến được phát hiện tĩnh; các tuyến đường được tạo động tại thời điểm runtime vẫn là chưa xác định.
 
-When the advertised schema supports `view`, use `detail: "summary"` with
-`view: {kind: "javascript-routes", collection: "routes", fields: ["path", "confidence"], limit: 20}`.
-The same view works with `analyze_web_bundle` on already selected captured sources.
-The complete source Evidence is retained; use its `parent_evidence_id` with
-`inspect_analysis_view` for `summary`, `routes`, `occurrences`, `sources`, or
-`unknowns`. Filter and batch IDs before requesting more fields, and follow
-`coverage.next_offset`. CLI selections require `--evidence_output` to keep the
-complete record. Static patterns, inferred deployment bases, heuristic system
-classification, and unavailable sources never establish route reachability or
-the complete application route denominator. See the
-[route inventory guide](https://github.com/morluto/rea/blob/main/docs/javascript-route-inventory.md).
+## Đọc một mô-đun mà không lặp lại phân tích (Read a module without repeating analysis)
 
-For captured endpoint observations and inference facts, `analyze_web_bundle`
-also accepts `view: {kind: "web-bundle", collection: "endpoints", limit: 32}`
-with `detail: "summary"`. Read later `endpoints`, `inferences`, or `summary`
-pages from the retained parent. Filter before requesting detail; retain
-`source_index` together with parent ID and collection, and request `location`
-or `basis` when tracing sources. Page exhaustion does not mean producer
-completeness: check `completeness`, structured `source_unknowns`, and limitations.
-Endpoint candidates remain inferences rather than confirmed network behavior.
-
-## Read a module without repeating analysis
-
-Use the actual returned parent ID, on the same connection, as `source.evidence_id`.
-The following IDs are placeholders to replace with returned values. When the
-module's node ID is not already known, page identities before selecting an item.
-Pages return only node IDs, paths and roles; choose a useful page size and follow
-`coverage.next_offset` when another page matters:
+Sử dụng ID cha thực tế được trả về, trên cùng một kết nối, làm `source.evidence_id`. Các ID sau đây là phần giữ chỗ để thay thế bằng các giá trị được trả về thực tế. Khi chưa biết node ID của mô-đun, hãy phân trang các định danh trước khi chọn một mục. Các trang chỉ trả về node ID, đường dẫn và vai trò; hãy chọn kích thước trang hữu ích và theo dõi `coverage.next_offset` khi cần một trang khác:
 
 ```json
 {
   "source": {
     "kind": "retained-evidence",
-    "evidence_id": "ev_ACTUAL_PARENT_ID"
-  },
-  "view": { "kind": "page", "collection": "modules", "offset": 0, "limit": 16 }
-}
-```
-
-Select the relevant page entry by its exact `node_id` and recorded role:
-
-```json
-{
-  "source": {
-    "kind": "retained-evidence",
-    "evidence_id": "ev_ACTUAL_PARENT_ID"
+    "evidence_id": "ev_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
   },
   "view": {
-    "kind": "item",
-    "collection": "modules",
-    "selector": { "node_id": "jag_node_ACTUAL_NODE_ID" }
-  }
-}
-```
-
-Module pages include asset, bundled and source module roles, so one path can
-identify several entries. Use `selector.path` only when uniqueness is established;
-the returned node ID avoids needing a complete inventory to prove uniqueness. On ambiguity,
-select the matching node ID from the page or the error's candidates. Follow
-`next_offset` when another page matters. An item exposes that module node's
-recorded observations, identity, hashes, exports and source ranges; it does not
-include every child syntax observation, related edge or original source file.
-An absent item fact is not evidence of absence from the whole application.
-
-For canonical identities and retained source-range counts, use a typed reference
-page instead of reading every full item:
-
-```json
-{
-  "source": {
-    "kind": "retained-evidence",
-    "evidence_id": "ev_ACTUAL_PARENT_ID"
-  },
-  "view": {
-    "kind": "javascript",
-    "collection": "modules",
-    "projection": "references",
-    "where": { "path": "main.js", "kind": "javascript-module" },
+    "kind": "javascript-modules",
+    "collection": "identities",
     "offset": 0,
-    "limit": 16
+    "limit": 50
   }
 }
 ```
 
-Filters match exact retained strings; omit a filter to include all values, use
-`path: null` for unavailable paths, and `path: ""` for a recorded empty path.
-Rows preserve canonical `identity` and distinct observation support states in
-`basis`. `retained_source_range_count` counts retained source-range observations,
-not runtime imports or unique reference sites. Use a row's `node_id` with the item
-view above for exact locations and full supporting observations. Follow
-`coverage.next_offset`; page exhaustion describes matching retained rows only.
-Check `source_coverage` for source selection, partial/unknown graph coverage and
-unknown counts before drawing a negative conclusion.
+Khi node ID của mô-đun đã được xác định, hãy yêu cầu chế độ xem chi tiết của mô-đun đó để kiểm tra các lệnh import, export, chuỗi ký tự, các lệnh gọi API được quan sát và mối quan hệ chứa đựng:
 
-## Trace only the remaining question
+```json
+{
+  "source": {
+    "kind": "retained-evidence",
+    "evidence_id": "ev_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "view": {
+    "kind": "javascript-modules",
+    "collection": "item",
+    "node_id": "mod_abcdef0123456789"
+  }
+}
+```
 
-Use `trace_application_feature` on the parent application Evidence for one
-literal node ID, route, string, API, IPC channel, module, or native export.
-Select `incoming` for relationships leading to the seed, `outgoing` for those
-leaving it, and `both` when the question needs both. Trace traversal includes
-containment relationships, so even a narrow seed can expand many nodes; a
-bidirectional trace can reach unrelated sibling modules. A module item or page
-is preferable when its observations already answer the question. Do not treat
-all reached nodes as participants in the feature.
+Thao tác này tránh việc truyền tải lại toàn bộ đồ thị ứng dụng chỉ để đọc một tệp duy nhất.
 
-Reuse retained parent Evidence when the server advertises it, or supply complete
-Evidence inline. Include Hopper or Ghidra Evidence only when its artifact digest
-matches exactly.
+## Chỉ lần vết câu hỏi còn lại (Trace only the remaining question)
 
-## Recover an oversized display
+Sử dụng `trace_application_feature` trên Evidence ứng dụng cha cho một node ID, tuyến đường, chuỗi ký tự, API, kênh IPC, mô-đun hoặc export native cụ thể. Chọn `incoming` cho các mối quan hệ dẫn đến seed, `outgoing` cho các mối quan hệ rời khỏi nó, và `both` khi câu hỏi cần cả hai chiều. Việc duyệt lần vết bao gồm các mối quan hệ chứa đựng (containment relationships), do đó ngay cả một seed hẹp cũng có thể mở rộng các tệp chứa nó; hãy chọn hướng tiếp cận phù hợp nhất với câu hỏi điều tra.
 
-An oversized response reports `resource_constraint` and
-`details.resource: "transport"`. Reuse
-`details.reported_limits.evidence_reference` with `inspect_analysis_view` for a
-summary, one module, or a stable page of module identities.
-`export_evidence_bundle` writes the complete canonical session to a
-caller-selected file. These workflows keep the original Evidence and coverage;
-a broad follow-up can also exceed framing.
+```json
+{
+  "application": {
+    "kind": "retained-evidence",
+    "evidence_id": "ev_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "seed": {
+    "kind": "ipc_channel",
+    "value": "app:request-license"
+  },
+  "direction": "incoming"
+}
+```
 
-A client can truncate a successful result inside its text envelope without a
-REA `resource_constraint`. Treat a truncation notice or incomplete JSON as a
-display limitation; do not claim the full record was examined. Reuse the known
-parent ID for smaller views, or export complete Evidence to a selected file
-while the session remains open. If the parent ID was lost from the preview,
-use the prior analysis summary or explicit ledger entries to recover it; do
-not invent an ID or rerun analysis just to reproduce the same display.
+## Khôi phục khi hiển thị quá khổ (Recover an oversized display)
 
-BrowserWindow preferences, preload and contextBridge surfaces, IPC
-registrations, utility processes, and native binding requests are static syntax
-observations. Only a unique exact literal IPC channel match supports an inferred
-pairing. Dynamic or ambiguous channels remain unresolved. A requested `.node`
-member is not a verified native export. Never claim runtime reachability,
-registration, defaults, or policy enforcement from static analysis.
+Một phản hồi quá khổ sẽ báo cáo `resource_constraint` và `details.resource: "transport"`. Tái sử dụng `details.reported_limits.evidence_reference` với `inspect_analysis_view` để lấy bản tóm tắt, một mô-đun đơn lẻ, hoặc một trang định danh mô-đun ổn định. Lệnh `export_evidence_bundle` ghi toàn bộ phiên chuẩn vào một tệp do bên gọi chọn. Các quy trình này giữ nguyên Evidence ban đầu và ngăn chặn các vòng lặp thất bại do truyền tải lại cùng một khối dữ liệu quá lớn qua khung MCP.
 
-For version comparison, analyze each version once, then call
-`compare_application_versions`. Accept only its digest, source-map, structural
-fingerprint, or non-module semantic matches. Module ordinals and minified names
-are not persistent identity. Report added or removed only with complete
-opposite-side coverage; otherwise report unknown.
+Đối với đầu ra CLI, dữ liệu JSON hoàn chỉnh được truyền luồng ra stdout mà không bị giới hạn kích thước khung đơn lẻ của MCP. Bạn có thể chuyển hướng đầu ra vào tệp bằng cách sử dụng `--evidence_output /path/to/evidence.json` để kiểm tra ngoại tuyến hoặc phân tích bằng các công cụ khác.
 
-When the question asks how one exact exported callable's returned object shape
-changed, analyze each version once and then call
-`compare_javascript_export_shapes` with explicit module paths and export names.
-Use the returned IDs on the same connection, or complete inline Evidence
-records, from both analysis calls. Accept variant
-pairing only through the tool's unique exact literal discriminant. Read
-`property_inventories` and each change's `presence` before treating `unknown` as
-"the name was not observed": inventories list observed property names even when
-values stay unknown, with a `source_range` for each paired or unpaired variant.
-Array holes and mutation-invalidated slots are not observed properties.
-Complete parent coverage reports presence-only
-`added`/`removed` independently of unresolved values. Cite the
-comparison Evidence and report JSON Pointer changes; dynamic values, ambiguous
-variants, and incomplete parent-property coverage stay unknown. This is static
-inference, not runtime behavior. When runtime semantics are needed, run
-behavioral probes against the relevant application versions and capture them
-through the available browser, Electron, or process workflows.
+## Tái sử dụng Evidence ứng dụng (Reusing application Evidence)
 
-## Reusing application Evidence
+Khi được server kết nối quảng bá, các công cụ lần vết và so sánh ứng dụng chấp nhận Evidence nội tuyến hoàn chỉnh hoặc:
 
-When advertised by the connected server, application trace and compare tools
-accept complete inline Evidence or
-`{"kind":"retained-evidence","evidence_id":"ev_<64 lowercase hex characters>"}`
-for their application input (`application`, or `left`/`right`). `inspect_analysis_view`
-uses the same retained-reference form in `source`, or portable inline Evidence,
-to project a summary, module page, or one module with its recorded observations.
-This notation is
-a template: replace it with the actual returned ID. Versions before 4.1.0 accept only full
-inline Evidence. Use the exact ID
-returned by the producer on the same MCP connection. Resolution does not run
-analysis or select a provider; findings remain inline. Native observation
-arrays still take full Evidence. `close_binary` clears retained references;
-export a bundle before closing, or supply portable inline Evidence in another
-connection. A missing reference includes its ID and recovery guidance.
+```json
+{
+  "kind": "retained-evidence",
+  "evidence_id": "ev_<64 ký tự hex viết thường>"
+}
+```
 
-For exact file/native metadata or processing gaps, use
-`view: {kind: "javascript-facts", where: {paths: ["package.json"]}, property_keys: ["name", "operation", "analysis_status"], limit: 32}`.
-Rows retain canonical node/observation identity and original Evidence. Paths
-match Evidence artifact-path/source-range locations; missing properties remain
-omitted and source coverage stays separate from page exhaustion. Batch paths and
-select only needed property keys; complete Evidence remains accessible by export.
-If names are unknown, opt into `include_available_property_keys: true`; it lists
-the original keys per returned observation without unselected values. Keep each
-row's node/observation identity paired when composing facts.
-These rows select application-graph observations; semantic relationships and
-semantic unknown records remain in the complete parent Evidence and trace tools.
+cho đầu vào ứng dụng của chúng (`application`, hoặc `left`/`right`). Lệnh `inspect_analysis_view` sử dụng cùng một định dạng tham chiếu lưu giữ trong `source`, hoặc Evidence nội tuyến khả chuyển, để chiếu các chế độ xem mục tiêu cụ thể mà không cần chạy lại bộ phân tích.
+
+Khi so sánh hai phiên bản ứng dụng bằng `compare_applications`, hãy cung cấp cả hai đối tượng ứng dụng dưới dạng tham chiếu lưu giữ để nhận bản phân tích khác biệt có cấu trúc về các tuyến đường, mô-đun, kênh IPC và API đã thêm, sửa đổi hoặc loại bỏ.

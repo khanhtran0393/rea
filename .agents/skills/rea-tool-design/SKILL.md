@@ -1,32 +1,16 @@
 ---
 name: rea-tool-design
-description: Audit, investigate, design, or change REA investigation tools, CLI/MCP contracts, provider capabilities, and Evidence semantics.
+description: Kiểm toán, điều tra, thiết kế hoặc thay đổi các công cụ điều tra của REA, hợp đồng CLI/MCP, khả năng của provider và ngữ nghĩa Evidence.
 ---
 
-# REA tool design
+# Thiết kế công cụ REA (REA tool design)
 
-Use the [tool-design guide](../../../docs/tool-design.md) for tool boundaries,
-contract semantics, provider ownership, and discoverability. Inspect the current
-contract and nearest existing tool relevant to the analyst question; source,
-documentation, and live catalogs may describe different versions.
+Sử dụng [hướng dẫn thiết kế công cụ](../../../docs/tool-design.md) để xác định ranh giới công cụ, ngữ nghĩa hợp đồng, quyền sở hữu provider và khả năng khám phá (discoverability). Kiểm tra hợp đồng hiện tại và công cụ hiện có gần nhất liên quan đến câu hỏi của nhà phân tích; mã nguồn, tài liệu và danh mục trực tiếp có thể mô tả các phiên bản khác nhau.
 
-For provider-backed work, exercise the analyst's task through REA and compare
-relevant native provider and independent artifact observations where available.
-Check applicable partial results, recovery and session boundaries; report what
-was not exercised. Use [workflow verification](../../../docs/testing.md#provider-backed-workflow-verification)
-to select evidence for the proposed contract instead of seeking provider API
-parity.
+Đối với công việc phụ thuộc vào provider, hãy thực hiện tác vụ của nhà phân tích thông qua REA và so sánh các quan sát từ provider native tương ứng cùng các hiện vật độc lập nếu có. Kiểm tra các kết quả từng phần có thể áp dụng, ranh giới phục hồi và phiên làm việc; báo cáo những gì chưa được thực thi. Sử dụng [xác minh quy trình làm việc](../../../docs/testing.md#provider-backed-workflow-verification) để chọn bằng chứng cho hợp đồng đề xuất thay vì tìm kiếm sự tương đồng tuyệt đối về API của provider.
 
-For an audit, follow [audit existing tools](../../../docs/tool-design.md#audit-existing-tools):
-scope representative tasks, exercise the live workflow, and distinguish
-reproduced bugs, supported limitations, design opportunities and unverified
-claims. Report working alternatives and evidence limits as well as findings.
+Đối với một cuộc kiểm toán (audit), hãy làm theo [kiểm toán các công cụ hiện có](../../../docs/tool-design.md#audit-existing-tools): xác định phạm vi các tác vụ đại diện, thực thi quy trình trực tiếp, phân biệt giữa lỗi tái hiện được, các giới hạn được hỗ trợ, cơ hội thiết kế và các nhận định chưa được xác minh. Báo cáo các giải pháp thay thế khả dụng và giới hạn bằng chứng cũng như các phát hiện.
 
-For a design request, return the proposed boundary, input/result shape, Evidence
-semantics, nearest alternative, and verification approach. Implement when
-requested, preserving the user's scope and existing authorization.
+Đối với yêu cầu thiết kế, hãy trả về ranh giới đề xuất, cấu trúc đầu vào/kết quả, ngữ nghĩa Evidence, giải pháp thay thế gần nhất và phương pháp xác minh. Triển khai khi được yêu cầu, bảo toàn phạm vi của người dùng và các ủy quyền hiện có.
 
-For implementation or verification, consult [testing](../../../docs/testing.md)
-for the affected consumer and provider lanes, and
-[contributing](../../../CONTRIBUTING.md) for generated-file ownership. Read
-provider/workflow guides only as the task requires.
+Đối với việc triển khai hoặc xác minh, hãy tham khảo [kiểm thử](../../../docs/testing.md) cho các luồng consumer và provider bị ảnh hưởng, và [đóng góp](../../../CONTRIBUTING.md) cho quyền sở hữu tệp được tạo tự động. Chỉ đọc hướng dẫn provider/quy trình khi tác vụ yêu cầu.

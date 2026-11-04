@@ -1,204 +1,106 @@
-# Analysis settings, limits, and recovery
+# Cài đặt phân tích, giới hạn và phục hồi (Analysis settings, limits, and recovery)
 
-This guide explains the runtime settings design for maintainers and developers:
-who owns each value, when an update takes effect, how providers enforce it, and
-how to extend the system. The public tool contract is in
-[MCP contracts](../mcp-contracts.md#editable-analysis-settings); recorded runtime
-checks and their limitations are in the
-[verification report](../verification/runtime-analysis-settings.md).
+Hướng dẫn này giải thích thiết kế cài đặt thời gian chạy (runtime settings) cho người bảo trì và nhà phát triển: ai sở hữu từng giá trị, khi nào bản cập nhật có hiệu lực, cách các provider thực thi nó và cách mở rộng hệ thống. Hợp đồng công cụ công khai nằm trong [Hợp đồng MCP](../mcp-contracts.md#editable-analysis-settings); các kiểm tra thời gian chạy được ghi nhận và giới hạn của chúng nằm trong [báo cáo xác minh](../verification/runtime-analysis-settings.md).
 
-## Problem and design boundary
+## Vấn đề và ranh giới thiết kế (Problem and design boundary)
 
-A valid workload can exceed a conservative default. An oversized ASAR header
-may prevent analysis of the entire archive; a slow Ghidra function may exceed
-its decompile deadline. Requiring a new REA process to change either budget
-interrupts the investigation and can discard reusable provider state.
+Một khối lượng công việc hợp lệ có thể vượt quá giá trị mặc định thận trọng. Tiêu đề ASAR quá khổ có thể ngăn chặn phân tích toàn bộ kho lưu trữ; một hàm Ghidra chậm có thể vượt quá thời hạn dịch ngược của nó. Việc yêu cầu một tiến trình REA mới để thay đổi ngân sách sẽ làm gián đoạn cuộc điều tra và có thể loại bỏ trạng thái provider có thể tái sử dụng.
 
-REA exposes a curated set of analysis defaults through MCP so callers can
-adjust a reported limit and retry the same workload in the running runtime.
-Each setting has a typed value, resource bounds, an enforcement owner, and a
-defined application point. The design applies across archive admission,
-provider startup, operation deadlines, and worker memory requests.
+REA cung cấp một tập hợp các giá trị mặc định phân tích được tuyển chọn thông qua MCP để bên gọi có thể điều chỉnh giới hạn được báo cáo và thử lại cùng một khối lượng công việc trong runtime đang chạy. Mỗi cài đặt có một giá trị được định kiểu, ranh giới tài nguyên, chủ thể thực thi và điểm áp dụng xác định. Thiết kế này áp dụng trên toàn bộ quá trình tiếp nhận kho lưu trữ, khởi động provider, thời hạn hoạt động và yêu cầu bộ nhớ của worker.
 
-The setter changes in-memory defaults. It does not edit arbitrary environment
-variables, configuration files, MCP registrations, or provider installations.
-Those mechanisms have different owners and lifetimes. It also cannot change a
-client deadline, extend accepted work, release retained resources, or remove a
-fixed representation limit. Exposing a setting requires a working enforcement
-path, not just an entry in the tool schema.
+Hàm setter thay đổi các giá trị mặc định trong bộ nhớ. Nó không chỉnh sửa các biến môi trường tùy ý, tệp cấu hình, đăng ký MCP hoặc cài đặt provider. Các cơ chế đó có các chủ thể sở hữu và vòng đời khác nhau. Nó cũng không thể thay đổi thời hạn của client, mở rộng công việc đã chấp nhận, giải phóng tài nguyên được lưu giữ hoặc xóa giới hạn biểu diễn cố định. Việc cung cấp một cài đặt đòi hỏi một đường dẫn thực thi hoạt động thực tế, không chỉ là một mục trong lược đồ công cụ.
 
-Further ceilings that should become settings are tracked in
-[#6176](https://github.com/morluto/rea/issues/6176). Naming honesty for limit
-errors is [#5910](https://github.com/morluto/rea/issues/5910).
+Các mức trần tiếp theo nên trở thành cài đặt được theo dõi trong [#6176](https://github.com/morluto/rea/issues/6176). Tính trung thực trong việc đặt tên cho các lỗi giới hạn được theo dõi trong [#5910](https://github.com/morluto/rea/issues/5910).
 
-## Ownership and data flow
+## Quyền sở hữu và luồng dữ liệu (Ownership and data flow)
 
-| Owner                                                                                                                                                                                                                   | Responsibility                                                                                                                                                                                     |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Domain definitions](https://github.com/morluto/rea/blob/main/src/domain/analysisSettingDefinitions.ts) and [types](https://github.com/morluto/rea/blob/main/src/domain/analysisSettings.ts)                            | Exact setting IDs, value types, shared bounds/defaults, units, provider/operation associations, application points, and structured limit metadata. Numeric constants stay with their domain owner. |
-| [Launch parser](https://github.com/morluto/rea/blob/main/src/config/analysisSettings.ts)                                                                                                                                | Parse selected launch values once, preserving an invalid value as a typed configuration failure rather than substituting a default.                                                                |
-| [AnalysisSettings](https://github.com/morluto/rea/blob/main/src/application/AnalysisSettings.ts)                                                                                                                        | Own one runtime's launch baseline, immutable override revisions, atomic updates, inspection, and accepted-operation snapshots. It does not own provider lifecycle or cleanup.                      |
-| [Composition](https://github.com/morluto/rea/blob/main/src/main/eagerRuntime.ts) and [typed configuration views](https://github.com/morluto/rea/blob/main/src/config/runtimeAnalysisSettings.ts)                        | Inject the same settings reader into providers and workflows; translate overrides into the configuration each consumer understands.                                                                |
-| Provider or resource owner                                                                                                                                                                                              | Resolve the effective budget, enforce it at the applicable boundary, and attach the actual value and known source to failures.                                                                     |
-| [MCP registration boundary](https://github.com/morluto/rea/blob/main/src/server/EvidenceMcpServerCore.ts)                                                                                                               | Enter the operation's settings scope before invoking its handler.                                                                                                                                  |
-| [Settings contracts](https://github.com/morluto/rea/blob/main/src/contracts/analysisSettingsContracts.ts) and [tool registration](https://github.com/morluto/rea/blob/main/src/server/registerAnalysisSettingsTools.ts) | Validate named requests and deliver inspection/update results without requiring an open target or healthy analysis provider.                                                                       |
+| Chủ thể sở hữu | Trách nhiệm |
+| :--- | :--- |
+| [Định nghĩa miền](https://github.com/morluto/rea/blob/main/src/domain/analysisSettingDefinitions.ts) và [kiểu](https://github.com/morluto/rea/blob/main/src/domain/analysisSettings.ts) | ID cài đặt chính xác, kiểu giá trị, ranh giới/mặc định dùng chung, đơn vị, liên kết provider/thao tác, điểm áp dụng và metadata giới hạn có cấu trúc. Hằng số số học ở lại với chủ sở hữu miền của chúng. |
+| [Bộ phân tích cú pháp khởi chạy](https://github.com/morluto/rea/blob/main/src/config/analysisSettings.ts) | Phân tích cú pháp các giá trị khởi chạy đã chọn một lần, bảo toàn giá trị không hợp lệ dưới dạng lỗi cấu hình có định kiểu thay vì thay thế bằng giá trị mặc định. |
+| [AnalysisSettings](https://github.com/morluto/rea/blob/main/src/application/AnalysisSettings.ts) | Sở hữu mốc cơ sở khởi chạy của một runtime, các bản sửa đổi ghi đè bất biến, cập nhật nguyên tử, kiểm tra và bản chụp thao tác được chấp nhận. Nó không sở hữu vòng đời hoặc việc dọn dẹp của provider. |
+| [Thành phần](https://github.com/morluto/rea/blob/main/src/main/eagerRuntime.ts) và [chế độ xem cấu hình có kiểu](https://github.com/morluto/rea/blob/main/src/config/runtimeAnalysisSettings.ts) | Tiêm cùng một reader cài đặt vào các provider và quy trình làm việc; dịch các ghi đè thành cấu hình mà mỗi consumer hiểu được. |
+| Chủ sở hữu provider hoặc tài nguyên | Giải quyết ngân sách hiệu quả, thực thi nó tại ranh giới áp dụng và gắn giá trị thực tế cùng nguồn đã biết vào các lỗi. |
+| [Ranh giới đăng ký MCP](https://github.com/morluto/rea/blob/main/src/server/EvidenceMcpServerCore.ts) | Đi vào phạm vi cài đặt của thao tác trước khi gọi trình xử lý của nó. |
+| [Hợp đồng cài đặt](https://github.com/morluto/rea/blob/main/src/contracts/analysisSettingsContracts.ts) và [đăng ký công cụ](https://github.com/morluto/rea/blob/main/src/server/registerAnalysisSettingsTools.ts) | Xác thực các yêu cầu có tên và cung cấp kết quả kiểm tra/cập nhật mà không yêu cầu mục tiêu đang mở hoặc provider phân tích khỏe mạnh. |
 
-The normal path is: composition creates the store, an MCP handler captures its
-current revision, and providers read that snapshot when resolving budgets.
-If an owner rejects work, it reports the effective limit through the shared
-error projection. A subsequent settings update publishes a new revision for
-later handlers. It does not reach into the failed operation or retry it.
+Đường dẫn thông thường là: thành phần tạo kho lưu trữ, trình xử lý MCP chụp lại bản sửa đổi hiện tại của nó và các provider đọc bản chụp đó khi giải quyết ngân sách. Nếu một chủ sở hữu từ chối công việc, nó sẽ báo cáo giới hạn hiệu quả thông qua phép chiếu lỗi dùng chung. Một bản cập nhật cài đặt tiếp theo sẽ xuất bản một bản sửa đổi mới cho các trình xử lý sau này. Nó không can thiệp vào thao tác đã thất bại hoặc tự động thử lại.
 
-### Accepted-operation snapshots
+### Bản chụp thao tác được chấp nhận (Accepted-operation snapshots)
 
-`AnalysisSettings.run()` installs the current immutable snapshot in
-`AsyncLocalStorage`. Its `read` function returns that snapshot inside the
-operation and the latest revision outside it. Providers depend on the reader
-contract rather than on the mutable store or an ambient environment lookup.
+`AnalysisSettings.run()` cài đặt bản chụp bất biến hiện tại trong `AsyncLocalStorage`. Hàm `read` của nó trả về bản chụp đó bên trong thao tác và bản sửa đổi mới nhất bên ngoài thao tác. Các provider phụ thuộc vào hợp đồng reader thay vì kho lưu trữ có thể thay đổi hoặc việc tra cứu môi trường xung quanh.
 
-Acceptance here is entry into the registered handler's settings scope, not
-arrival of bytes at the MCP transport. Work queued or awaited within that scope
-keeps its snapshot. Deferred server initialization must still dispatch through
-the canonical scoped handler.
+Sự chấp nhận ở đây là việc đi vào phạm vi cài đặt của trình xử lý đã đăng ký, không phải việc các byte đến phương tiện truyền tải MCP. Công việc được xếp hàng hoặc chờ đợi trong phạm vi đó sẽ giữ nguyên bản chụp của nó. Việc khởi tạo máy chủ bị trì hoãn vẫn phải điều phối thông qua trình xử lý có phạm vi chuẩn.
 
-| Event                                                     | Revision used                       |
-| --------------------------------------------------------- | ----------------------------------- |
-| Operation A enters its handler, then waits for a provider | Current revision 0                  |
-| A settings update publishes revision 1                    | Future handlers can read revision 1 |
-| Operation A resumes and starts its worker                 | Its accepted revision 0             |
-| Operation B enters its handler                            | Revision 1                          |
+| Sự kiện | Bản sửa đổi được sử dụng |
+| :--- | :--- |
+| Thao tác A đi vào trình xử lý của nó, sau đó chờ một provider | Bản sửa đổi hiện tại 0 |
+| Cập nhật cài đặt xuất bản bản sửa đổi 1 | Các trình xử lý trong tương lai có thể đọc bản sửa đổi 1 |
+| Thao tác A tiếp tục và bắt đầu worker của nó | Bản sửa đổi được chấp nhận của nó 0 |
+| Thao tác B đi vào trình xử lý của nó | Bản sửa đổi 1 |
 
-This gives each operation stable budget semantics even if another connection
-updates settings while it waits. `next_worker` and `next_startup` describe where
-an accepted value is applied; they do not cause workers or startups belonging
-to an older operation to adopt a newer revision.
+Điều này mang lại cho mỗi thao tác ngữ nghĩa ngân sách ổn định ngay cả khi một kết nối khác cập nhật cài đặt trong khi nó đang chờ. `next_worker` và `next_startup` mô tả nơi một giá trị được chấp nhận được áp dụng; chúng không làm cho các worker hoặc lượt khởi động thuộc về một thao tác cũ hơn chấp nhận bản sửa đổi mới hơn.
 
-Inspection deliberately reads the store's current defaults, rather than the
-calling operation's snapshot. It reports `active_values.status: "not_observed"`:
-an inspection result cannot establish the budget or remaining time of an
-already-running worker.
+Kiểm tra chủ ý đọc các giá trị mặc định hiện tại của kho lưu trữ, thay vì bản chụp của thao tác gọi. Nó báo cáo `active_values.status: "not_observed"`: kết quả kiểm tra không thể xác lập ngân sách hoặc thời gian còn lại của một worker đang chạy.
 
-### Composition and embedding
+### Thành phần và nhúng (Composition and embedding)
 
-The MCP runtime creates one store and supplies its reader to provider factories.
-`createServer` uses a supplied store or creates one, and wires its default
-providers to that store. An embedder supplying a custom binary session or other
-provider must also inject the same reader into that provider's composition and
-pass the store to `createServer`. Merely exposing the settings tools cannot
-make a custom provider consume updates.
+Runtime MCP tạo một kho lưu trữ và cung cấp reader của nó cho các nhà máy provider. `createServer` sử dụng kho lưu trữ được cung cấp hoặc tạo một kho lưu trữ, và kết nối các provider mặc định của nó với kho lưu trữ đó. Một bên nhúng cung cấp phiên nhị phân tùy chỉnh hoặc provider khác cũng phải tiêm cùng một reader vào thành phần của provider đó và truyền kho lưu trữ tới `createServer`. Chỉ riêng việc cung cấp các công cụ cài đặt không thể làm cho một provider tùy chỉnh tiếp nhận các bản cập nhật.
 
-Keep default factories, explicitly supplied providers, transport composition,
-and deferred handler dispatch covered separately where their wiring differs.
-Resolve settings at the operation boundary; copying a runtime value into a
-provider constructor would freeze it at launch. For entrypoints outside the
-MCP wrapper, an embedder needing the same snapshot guarantee must establish
-the operation scope with `AnalysisSettings.run()`.
+Giữ các nhà máy mặc định, provider được cung cấp rõ ràng, thành phần truyền tải và điều phối trình xử lý bị trì hoãn được bao phủ riêng biệt khi hệ thống dây nối của chúng khác nhau. Giải quyết các cài đặt tại ranh giới thao tác; sao chép giá trị runtime vào hàm tạo provider sẽ làm đóng băng giá trị đó khi khởi chạy. Đối với các điểm vào bên ngoài wrapper MCP, một bên nhúng cần sự đảm bảo bản chụp tương tự phải thiết lập phạm vi thao tác với `AnalysisSettings.run()`.
 
-## Name a default, then a setting when operators need headroom
+## Đặt tên giá trị mặc định, sau đó là cài đặt khi người vận hành cần thêm khoảng trống
 
-Put the number in a named constant with a unit. Do not leave it as a magic
-number at the call site.
+Đặt con số trong một hằng số có tên kèm theo đơn vị. Không để nó dưới dạng một con số ma thuật (magic number) tại nơi gọi.
 
-When a workload may need more room, add a setting whose unset value is that
-constant. Pure numeric contracts live in `src/domain/analysisResourceLimits.ts`
-or their existing domain owner. `analysisSettingDefinitions.ts` binds the
-curated runtime IDs to those same bounds, defaults and application points.
-Environment parsers and recovery text stay under `src/config/`; register launch
-schemas on `environmentSchema` so startup and doctor agree. Add launch settings
-to `SELECTED_REGISTRATION_SETTINGS` when setup should forward them. Unset keeps
-today's behavior. An invalid launch value remains a configuration failure,
-never a silent fallback; its validation boundary determines whether MCP can
-start (see [invalid launch configuration](#invalid-launch-configuration)). An
-invalid runtime write is `invalid_request` and changes nothing.
+Khi một khối lượng công việc có thể cần thêm dung lượng, hãy thêm một cài đặt có giá trị chưa đặt là hằng số đó. Các hợp đồng số học thuần túy nằm trong `src/domain/analysisResourceLimits.ts` hoặc chủ sở hữu miền hiện có của chúng. `analysisSettingDefinitions.ts` liên kết các ID runtime được tuyển chọn với các ranh giới, mặc định và điểm áp dụng tương tự. Trình phân tích cú pháp môi trường và văn bản phục hồi ở lại dưới `src/config/`; đăng ký lược đồ khởi chạy trên `environmentSchema` để quá trình khởi động và doctor thống nhất. Thêm cài đặt khởi chạy vào `SELECTED_REGISTRATION_SETTINGS` khi thiết lập cần chuyển tiếp chúng. Chưa đặt sẽ giữ nguyên hành vi hiện tại. Một giá trị khởi chạy không hợp lệ vẫn là một lỗi cấu hình, không bao giờ tự động chuyển về mặc định; ranh giới xác thực của nó xác định liệu MCP có thể khởi động hay không (xem [cấu hình khởi chạy không hợp lệ](#cấu-hình-khởi-chạy-không-hợp-lệ)). Một lệnh ghi runtime không hợp lệ là `invalid_request` và không thay đổi gì cả.
 
-For example, `regex.matching_deadline_ms` and its launch seed
-`REA_REGEX_MATCHING_DEADLINE_MS` share a 5000 ms default, 1 ms floor and
-2147483647 ms maximum. Node schedules a longer `setTimeout` delay as 1 ms.
-Changing the runtime setting affects the next accepted search; changing the
-launch environment affects the next REA process.
+Ví dụ: `regex.matching_deadline_ms` và hạt giống khởi chạy `REA_REGEX_MATCHING_DEADLINE_MS` của nó chia sẻ mặc định 5000 ms, mức sàn 1 ms và mức tối đa 2147483647 ms. Node lên lịch độ trễ `setTimeout` dài hơn dưới dạng 1 ms. Việc thay đổi cài đặt thời gian chạy ảnh hưởng đến tìm kiếm được chấp nhận tiếp theo; thay đổi môi trường khởi chạy ảnh hưởng đến tiến trình REA tiếp theo.
 
-[`REA_MCP_MAX_RESPONSE_BYTES`](https://github.com/morluto/rea/blob/main/src/config/mcpResponseBudget.ts)
-is the byte-budget shape: a decimal safe integer with a 10 MiB floor
-(`MINIMUM_RESPONSE_BYTES`), the same shared schema, and no silent fallback. A
-change needs a REA restart and a matching client receive buffer. It does not
-raise REA's reserved string limit or Node's string ceiling. The setup
-allowlist does not copy this setting. A new headroom setting should, following
-the regex deadline.
+[`REA_MCP_MAX_RESPONSE_BYTES`](https://github.com/morluto/rea/blob/main/src/config/mcpResponseBudget.ts) là hình dạng ngân sách byte: một số nguyên an toàn thập phân với mức sàn 10 MiB (`MINIMUM_RESPONSE_BYTES`), cùng lược đồ dùng chung và không có giá trị dự phòng ngầm. Thay đổi cần khởi động lại REA và bộ đệm nhận client phù hợp. Nó không làm tăng giới hạn chuỗi dành riêng của REA hoặc trần chuỗi của Node. Danh sách cho phép thiết lập không sao chép cài đặt này. Một cài đặt khoảng trống mới nên làm theo thời hạn regex.
 
-A per-call budget can have a runtime default without having an environment
-setting. JavaScript `max_heap_mb`
-(CLI `--max-heap-mb`) is an integer from 128 to 16384 MiB, default 1024. It
-applies on the next analysis, which starts a new worker, and does not restart
-REA. It does not raise the parent result budget, transfer ceilings, or fixed
-parser limits.
+Ngân sách cho mỗi lệnh gọi có thể có mặc định thời gian chạy mà không cần có cài đặt môi trường. JavaScript `max_heap_mb` (CLI `--max-heap-mb`) là một số nguyên từ 128 đến 16384 MiB, mặc định 1024. Nó áp dụng trên phân tích tiếp theo, bắt đầu một worker mới và không khởi động lại REA. Nó không làm tăng ngân sách kết quả cha, trần truyền tải hoặc giới hạn trình phân tích cú pháp cố định.
 
-Host memory and `NODE_OPTIONS` do not raise a REA admission unless that
-admission's recovery says so. The JavaScript parent result budget is one that
-does: its recovery says to set `NODE_OPTIONS` (for example
-`--max-old-space-size=<MiB>`) on the process that starts REA, then restart
-that process. `max_heap_mb` does not raise it.
+Bộ nhớ máy chủ và `NODE_OPTIONS` không nâng cao mức tiếp nhận của REA trừ khi sự phục hồi của mức tiếp nhận đó nêu rõ như vậy. Ngân sách kết quả cha của JavaScript là một trường hợp như vậy: sự phục hồi của nó yêu cầu thiết lập `NODE_OPTIONS` (ví dụ: `--max-old-space-size=<MiB>`) trên tiến trình bắt đầu REA, sau đó khởi động lại tiến trình đó. `max_heap_mb` không làm tăng nó.
 
-## Runtime settings through MCP
+## Cài đặt thời gian chạy thông qua MCP (Runtime settings through MCP)
 
-`inspect_analysis_settings` lists the curated settings, their current and launch
-values, source, bounds, application point and relevant operation names. Filters
-by exact setting IDs, provider or operation intersect. Active worker values are explicitly `not_observed`; a configured default is
-not a measurement of active work. Inspection also separates known server limits from unknown client deadlines and receive buffers.
+`inspect_analysis_settings` liệt kê các cài đặt được tuyển chọn, giá trị hiện tại và khởi chạy của chúng, nguồn, ranh giới, điểm áp dụng và tên thao tác liên quan. Bộ lọc theo ID cài đặt chính xác, provider hoặc thao tác giao nhau. Các giá trị worker đang hoạt động rõ ràng là `not_observed`; một giá trị mặc định được cấu hình không phải là phép đo công việc đang hoạt động. Kiểm tra cũng tách biệt các giới hạn máy chủ đã biết khỏi các thời hạn client và bộ đệm nhận chưa biết.
 
-`update_analysis_settings` accepts an atomic `changes` array. Each entry names
-an exact `setting` and either `action: "set"` with a schema-validated `value`, or
-`action: "reset"`. Reset restores the launch value. `expected_revision` is an
-optional compare-and-set guard; conflicts and duplicate keys change nothing.
-An unchanged write does not advance the revision.
+`update_analysis_settings` chấp nhận một mảng `changes` nguyên tử. Mỗi mục đặt tên một `setting` chính xác và `action: "set"` với `value` đã được xác thực lược đồ, hoặc `action: "reset"`. Reset khôi phục giá trị khởi chạy. `expected_revision` là một bộ bảo vệ so sánh và đặt tùy chọn; xung đột và khóa trùng lặp không thay đổi điều gì. Một lệnh ghi không thay đổi sẽ không làm tăng bản sửa đổi.
 
-The revision tracks override state, not only effective numeric values. Setting
-an explicit override equal to the launch value still changes its source to
-`runtime` and advances the revision. Reset removes that override, even if the
-effective number stays the same. Validation, revision checks, and duplicate-key
-checks all happen before publishing the replacement snapshot; a rejected batch
-cannot partially apply. Clients coordinating writes can supply
-`expected_revision`; without it, valid updates apply to the current state.
+Bản sửa đổi theo dõi trạng thái ghi đè, không chỉ các giá trị số hiệu quả. Đặt ghi đè rõ ràng bằng giá trị khởi chạy vẫn thay đổi nguồn của nó thành `runtime` và nâng cao bản sửa đổi. Reset sẽ xóa phần ghi đè đó, ngay cả khi số hiệu quả vẫn giữ nguyên. Xác thực, kiểm tra sửa đổi và kiểm tra khóa trùng lặp đều diễn ra trước khi xuất bản bản chụp thay thế; một lô bị từ chối không thể áp dụng từng phần. Các client điều phối ghi có thể cung cấp `expected_revision`; nếu không có nó, các bản cập nhật hợp lệ sẽ áp dụng cho trạng thái hiện tại.
 
-| Runtime setting                                               | Application point                                                      |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `asar.max_header_bytes`                                       | Next archive operation, including full JavaScript application analysis |
-| `ghidra.startup_timeout_ms`, `hopper.startup_timeout_ms`      | Next provider startup attempt                                          |
-| `ghidra.decompile_timeout_seconds`                            | Next operation on the existing Ghidra Program; `null` means unbounded  |
-| `jadx.operation_timeout_ms`                                   | Next JADX operation                                                    |
-| `regex.matching_deadline_ms`, `regex.worker_heap_request_mib` | Next search / new regex worker                                         |
-| `capture.decoder_old_generation_mib`                          | Next owned capture decoder                                             |
-| `javascript.analysis_timeout_ms`, `javascript.max_heap_mb`    | Next source analysis / new JavaScript worker                           |
-| `wasm.command_timeout_ms`                                     | Next WABT operation                                                    |
-| `native.matching_representation_bytes`                        | Next `match_native_functions` request                                  |
+| Cài đặt thời gian chạy | Điểm áp dụng |
+| :--- | :--- |
+| `asar.max_header_bytes` | Thao tác lưu trữ tiếp theo, bao gồm phân tích toàn bộ ứng dụng JavaScript |
+| `ghidra.startup_timeout_ms`, `hopper.startup_timeout_ms` | Nỗ lực khởi động provider tiếp theo |
+| `ghidra.decompile_timeout_seconds` | Thao tác tiếp theo trên Program Ghidra hiện có; `null` có nghĩa là không giới hạn |
+| `jadx.operation_timeout_ms` | Thao tác JADX tiếp theo |
+| `regex.matching_deadline_ms`, `regex.worker_heap_request_mib` | Tìm kiếm tiếp theo / worker regex mới |
+| `capture.decoder_old_generation_mib` | Bộ giải mã capture thuộc sở hữu tiếp theo |
+| `javascript.analysis_timeout_ms`, `javascript.max_heap_mb` | Phân tích nguồn tiếp theo / worker JavaScript mới |
+| `wasm.command_timeout_ms` | Thao tác WABT tiếp theo |
+| `native.matching_representation_bytes` | Yêu cầu `match_native_functions` tiếp theo |
 
-### Precedence and lifetime
+### Thứ tự ưu tiên và vòng đời (Precedence and lifetime)
 
-Where a setting supports an explicit per-call argument, precedence is:
+Nơi cài đặt hỗ trợ đối số rõ ràng cho mỗi lệnh gọi, thứ tự ưu tiên là:
 
-1. The caller's explicit argument.
-2. The accepted operation's runtime override.
-3. Valid launch configuration, where that setting has an environment seed.
-4. The built-in default when launch configuration is absent.
+1. Đối số rõ ràng của bên gọi.
+2. Ghi đè thời gian chạy của thao tác được chấp nhận.
+3. Cấu hình khởi chạy hợp lệ, nơi cài đặt đó có hạt giống môi trường.
+4. Giá trị mặc định tích hợp sẵn khi cấu hình khởi chạy vắng mặt.
 
-An invalid launch value does not fall through to the built-in default. Preserve
-omitted caller arguments in Evidence: resolving an internal default must not
-rewrite the request as though the caller supplied it. `null` is the explicit
-unbounded value for `ghidra.decompile_timeout_seconds`; it is not a substitute
-for an unknown or omitted value elsewhere.
+Một giá trị khởi chạy không hợp lệ sẽ không tự động chuyển về mặc định tích hợp. Bảo toàn các đối số bên gọi bị bỏ qua trong Evidence: việc giải quyết giá trị mặc định nội bộ không được viết lại yêu cầu như thể bên gọi đã cung cấp nó. `null` là giá trị không giới hạn rõ ràng cho `ghidra.decompile_timeout_seconds`; nó không phải là sự thay thế cho một giá trị chưa xác định hoặc bị bỏ sót ở nơi khác.
 
-A write does not extend active work, relaunch a provider, clear retained
-cleanup, or invalidate successful Evidence.
+Lệnh ghi không mở rộng công việc đang hoạt động, không khởi chạy lại provider, không xóa quá trình dọn dẹp được lưu giữ hoặc làm mất hiệu lực của Evidence thành công.
 
-Overrides belong to one REA runtime, survive target close/open, and disappear
-when REA exits. Connections sharing that runtime share its overrides. No files,
-ambient environment, registrations or upstream software are edited. Overrides
-are runtime-wide, not scoped to a target or an individual connection.
+Ghi đè thuộc về một runtime REA, tồn tại qua việc đóng/mở mục tiêu và biến mất khi REA thoát. Các kết nối dùng chung runtime đó sẽ chia sẻ các ghi đè của nó. Không có tệp, môi trường xung quanh, đăng ký hoặc phần mềm upstream nào bị chỉnh sửa. Ghi đè có phạm vi toàn runtime, không giới hạn trong một mục tiêu hoặc một kết nối riêng lẻ.
 
-### Failure and retry
+### Lỗi và thử lại (Failure and retry)
 
-An ASAR admission error supplies `details.limit` with the exact setting,
-effective value, units, bounds, scope, application point, restart requirement
-and, when known, required bytes and value source. The agent can immediately call:
+Lỗi tiếp nhận ASAR cung cấp `details.limit` với cài đặt chính xác, giá trị hiệu quả, đơn vị, ranh giới, phạm vi, điểm áp dụng, yêu cầu khởi động lại và khi đã biết, số byte bắt buộc và nguồn giá trị. Tác tử có thể gọi ngay lập tức:
 
 ```json
 {
@@ -208,187 +110,71 @@ and, when known, required bytes and value source. The agent can immediately call
 }
 ```
 
-Then retry the same full-archive request once work and cleanup have settled.
-No preliminary inspection or source subset is required. The setter does not
-retry automatically. If an explicit per-call value caused the failure, correct
-that argument; raising a runtime default cannot override it.
+Sau đó thử lại cùng yêu cầu toàn kho lưu trữ sau khi công việc và việc dọn dẹp đã ổn định. Không cần kiểm tra sơ bộ hoặc tập hợp con nguồn. Hàm setter không tự động thử lại. Nếu một giá trị rõ ràng cho mỗi lệnh gọi gây ra lỗi, hãy sửa đối số đó; nâng cao mặc định thời gian chạy không thể ghi đè lên nó.
 
-The resource owner constructs `details.limit` from the registry plus the budget
-it actually enforced. Metadata includes `agent_editable: true`,
-`scope: "rea-runtime"`, and `rea_restart_required: false`. Optional
-`required_value`, `source`, and `parameter` fields are supplied only where known
-or applicable. Do not infer a source because a value happens to equal a default.
-Error copying, attribution, redaction, and delivery must preserve these facts.
-Human-readable remediation explains the same failure; clients should not need
-to parse that sentence to identify an editable setting.
+Chủ sở hữu tài nguyên xây dựng `details.limit` từ sổ đăng ký cộng với ngân sách mà nó thực sự thực thi. Metadata bao gồm `agent_editable: true`, `scope: "rea-runtime"` và `rea_restart_required: false`. Các trường tùy chọn `required_value`, `source` và `parameter` chỉ được cung cấp khi đã biết hoặc có thể áp dụng. Không suy luận nguồn vì một giá trị tình cờ bằng giá trị mặc định. Sao chép lỗi, quy kết, biên tập và phân phối phải bảo toàn các dữ kiện này. Biện pháp khắc phục con người có thể đọc được giải thích cùng một lỗi; client không cần phải phân tích câu văn đó để xác định cài đặt có thể chỉnh sửa.
 
-Cache policy is part of enforcement. Successful reusable analysis can survive
-a budget update. Transient Ghidra decompile failures remain uncached so a raised
-deadline can recover on the same Program. Admission checks still apply to reused
-data: lowering an ASAR limit must reject a cached oversized header. Neither
-raising a limit nor clearing a transient analysis failure authorizes skipping
-cleanup or changing the identity of the provider session.
+Chính sách bộ nhớ đệm là một phần của việc thực thi. Phân tích có thể tái sử dụng thành công có thể tồn tại sau khi cập nhật ngân sách. Các lỗi dịch ngược Ghidra tạm thời vẫn không được lưu trong bộ nhớ đệm để thời hạn được nâng cao có thể phục hồi trên cùng một Program. Kiểm tra tiếp nhận vẫn áp dụng cho dữ liệu được tái sử dụng: hạ thấp giới hạn ASAR phải từ chối tiêu đề quá khổ được lưu trong bộ nhớ đệm. Cả việc nâng giới hạn lẫn việc xóa lỗi phân tích tạm thời đều không cho phép bỏ qua việc dọn dẹp hoặc thay đổi danh tính của phiên provider.
 
-### Invalid launch configuration
+### Cấu hình khởi chạy không hợp lệ (Invalid launch configuration)
 
-Launch validation has two relevant boundaries. Settings validated by global
-configuration parsing can prevent REA from starting; an MCP setter cannot
-repair a server that is not running. Correct the launch environment or
-registration, use `rea doctor` for its configuration checks, and start REA again.
+Xác thực khởi chạy có hai ranh giới liên quan. Cài đặt được xác thực bằng phân tích cấu hình toàn cục có thể ngăn REA khởi động; một setter MCP không thể sửa chữa một máy chủ không chạy. Sửa môi trường khởi chạy hoặc đăng ký, sử dụng `rea doctor` cho các kiểm tra cấu hình của nó và khởi động lại REA.
 
-Provider-local validation can leave MCP available. For example, an invalid
-`REA_JADX_OPERATION_TIMEOUT_MS` is inspectable with `source: "invalid"`, a
-`configuration_error`, and omitted `value` and `launch_value`. A valid runtime
-override repairs the effective JADX timeout without editing that launch seed.
-Inspection then reports the runtime value while retaining the launch error.
-Reset exposes the invalid launch state again; it does not repair or replace it
-with the built-in default. Provider availability and execution must resolve the
-same effective setting so readiness changes along with repair and reset.
-`REA_NATIVE_MATCHING_REPRESENTATION_BYTES` is validated the same way, by
-`match_native_functions` alone.
+Xác thực cục bộ của provider có thể để MCP khả dụng. Ví dụ: một `REA_JADX_OPERATION_TIMEOUT_MS` không hợp lệ có thể kiểm tra được với `source: "invalid"`, một `configuration_error` và `value` cùng `launch_value` bị bỏ qua. Một ghi đè thời gian chạy hợp lệ sẽ sửa thời gian chờ JADX hiệu quả mà không cần chỉnh sửa hạt giống khởi chạy đó. Sau đó, việc kiểm tra sẽ báo cáo giá trị thời gian chạy trong khi vẫn giữ lại lỗi khởi chạy. Reset sẽ hiển thị lại trạng thái khởi chạy không hợp lệ; nó không sửa chữa hoặc thay thế nó bằng giá trị mặc định tích hợp. Tính khả dụng và thực thi của provider phải giải quyết cùng một cài đặt hiệu quả để tính sẵn sàng thay đổi cùng với việc sửa chữa và reset. `REA_NATIVE_MATCHING_REPRESENTATION_BYTES` được xác thực theo cùng cách, chỉ bởi `match_native_functions`.
 
-## Keep a fixed ceiling honest
+## Giữ sự trung thực về mức trần cố định (Keep a fixed ceiling honest)
 
-Inspection's separate
-[constraints](https://github.com/morluto/rea/blob/main/src/server/analysisSettingsConstraints.ts)
-describe operator-owned, external, and fixed controls. REA can report its
-configured response budget and parent heap limit; client deadlines and receive
-buffers remain explicitly unknown. These are not entries accepted by the
-runtime setter. Raising a worker heap request cannot raise the parent heap,
-and raising a provider deadline cannot make the client wait longer.
+Các [ràng buộc](https://github.com/morluto/rea/blob/main/src/server/analysisSettingsConstraints.ts) riêng biệt của việc kiểm tra mô tả các kiểm soát do người vận hành sở hữu, bên ngoài và cố định. REA có thể báo cáo ngân sách phản hồi được cấu hình và giới hạn heap cha của nó; thời hạn của client và bộ đệm nhận vẫn rõ ràng là chưa xác định. Đây không phải là các mục được chấp nhận bởi setter thời gian chạy. Nâng yêu cầu heap của worker không thể nâng heap cha và việc nâng thời hạn của provider không thể làm cho client chờ đợi lâu hơn.
 
-If the ceiling must stay fixed, say so in the failure. Name the limit and the
-effective value, say this release has no runtime override, and name what does
-not raise it. Do not invent a setting.
+Nếu trần phải cố định, hãy nêu rõ trong lỗi. Đặt tên giới hạn và giá trị hiệu quả, thông báo rằng bản phát hành này không có ghi đè thời gian chạy và nêu tên những gì không nâng nó lên. Không bịa ra một cài đặt.
 
-JSON values stop at `MAX_JSON_DEPTH` (1000) in
-[`jsonValue.ts`](https://github.com/morluto/rea/blob/main/src/domain/jsonValue.ts):
-"JSON value exceeds maximum nesting depth of 1000. This release has no runtime
-override."
+Các giá trị JSON dừng ở `MAX_JSON_DEPTH` (1000) trong [`jsonValue.ts`](https://github.com/morluto/rea/blob/main/src/domain/jsonValue.ts): "Giá trị JSON vượt quá độ sâu lồng nhau tối đa là 1000. Bản phát hành này không có ghi đè thời gian chạy."
 
-## Recovery text
+## Văn bản phục hồi (Recovery text)
 
-The string the caller sees includes:
+Chuỗi ký tự mà bên gọi nhìn thấy bao gồm:
 
-- the limit or setting name
-- the effective value and unit
-- the source when known (`default`, `setting`, `runtime`, or `request`)
-- the default, the maximum, and the floor when the setting has one
-- the next action, including where to set it ("in the environment that starts REA")
-- whether a restart is required
-- what the change does not raise
+- tên giới hạn hoặc cài đặt
+- giá trị hiệu quả và đơn vị
+- nguồn khi đã biết (`default`, `setting`, `runtime` hoặc `request`)
+- mặc định, tối đa và mức sàn khi cài đặt có
+- hành động tiếp theo, bao gồm cả nơi thiết lập nó ("trong môi trường bắt đầu REA")
+- liệu có cần khởi động lại hay không
+- những gì thay đổi không làm tăng lên
 
-Distinguish an invalid configuration from a valid budget exhausted by work.
-Preserve the configuration failure and its setting identity; apply the
-[launch validation boundary](#invalid-launch-configuration) when describing
-whether live repair is possible.
+Phân biệt cấu hình không hợp lệ với ngân sách hợp lệ bị cạn kiệt bởi công việc. Bảo toàn lỗi cấu hình và danh tính cài đặt của nó; áp dụng [ranh giới xác thực khởi chạy](#cấu-hình-khởi-chạy-không-hợp-lệ) khi mô tả liệu việc sửa chữa trực tiếp có khả thi hay không.
 
-## What agents do
+## Tác tử cần làm gì (What agents do)
 
-Use `details.limit` for a direct runtime update when it names an editable
-setting. Follow `remediation.action` for per-call, fixed and external controls.
-Inspect settings only when bounds or application details are missing. Restart only when it says the value is
-read at startup. A sentence that a control does not raise the limit is not a
-request to change it.
+Sử dụng `details.limit` để cập nhật thời gian chạy trực tiếp khi nó đặt tên một cài đặt có thể chỉnh sửa. Làm theo `remediation.action` cho các kiểm soát cho mỗi lệnh gọi, cố định và bên ngoài. Chỉ kiểm tra cài đặt khi thiếu ranh giới hoặc chi tiết ứng dụng. Chỉ khởi động lại khi nó nói giá trị được đọc khi khởi động. Một câu nói rằng một kiểm soát không nâng giới hạn không phải là yêu cầu thay đổi nó.
 
-- Dropped MCP connection: retry the call once only when it is safe to repeat
-  or known not to have started. If it may already have changed the target, or
-  it fails again, tell the user and ask them to restart the MCP client. Do not
-  start with `rea doctor`
-  ([#6353](https://github.com/morluto/rea/pull/6353)).
-- REA could not start its connection: retry once. If it fails again, tell the
-  user and ask them to restart the MCP client, then run `rea doctor`. Do not
-  retry a startup that returns the same unchanged result: tell the user REA
-  could not start, ask them to restart the MCP client, then run `rea doctor`.
-- Unexpected process-command failure: do not repeat the command. Tell the user
-  to check the input files, then run `rea doctor`.
-- `cleanup_incomplete`: the operation is not retryable. Retry that exact
-  cleanup owner, named in `details.resources`, and wait until it confirms
-  release before admitting new work on those resources
-  ([#6357](https://github.com/morluto/rea/pull/6357)).
-- `resource_constraint` for capacity, when `retryable` is true: wait for the
-  active admission to finish, then retry within the reported limits. Do not
-  restart REA to free the slot.
-- `configuration_invalid`: when MCP remains available and the failure belongs
-  to a curated provider-local setting, inspect and set a valid runtime override.
-  Otherwise correct the named setting in the environment that starts REA, then
-  start REA again. Run `rea doctor` for the
-  `runtime-configuration:` check. Re-run `rea setup` for that client when the
-  setting is on the registration allowlist, then reconnect so the new process
-  sees it.
-- `invalid_request`: correct the reported fields from the current schema or
-  CLI help. Do not repeat the unchanged call.
+- Mất kết nối MCP: chỉ thử lại lệnh gọi một lần duy nhất khi nó an toàn để lặp lại hoặc biết chắc là chưa bắt đầu. Nếu nó có thể đã làm thay đổi mục tiêu, hoặc tiếp tục thất bại, hãy thông báo cho người dùng và yêu cầu họ khởi động lại client MCP. Không bắt đầu bằng `rea doctor` ([#6353](https://github.com/morluto/rea/pull/6353)).
+- REA không thể bắt đầu kết nối của nó: thử lại một lần. Nếu thất bại một lần nữa, hãy báo cho người dùng và yêu cầu họ khởi động lại client MCP, sau đó chạy `rea doctor`. Không thử lại một lần khởi động trả về kết quả giống hệt không đổi: báo cho người dùng rằng REA không thể khởi động, yêu cầu họ khởi động lại client MCP, sau đó chạy `rea doctor`.
+- Lỗi lệnh tiến trình bất ngờ: không lặp lại lệnh. Yêu cầu người dùng kiểm tra các tệp đầu vào, sau đó chạy `rea doctor`.
+- `cleanup_incomplete`: thao tác không thể thử lại. Thử lại chính chủ sở hữu dọn dẹp đó, được nêu tên trong `details.resources`, và chờ cho đến khi nó xác nhận giải phóng trước khi tiếp nhận công việc mới trên các tài nguyên đó ([#6357](https://github.com/morluto/rea/pull/6357)).
+- `resource_constraint` cho dung lượng, khi `retryable` là true: đợi cho việc tiếp nhận đang hoạt động kết thúc, sau đó thử lại trong giới hạn được báo cáo. Không khởi động lại REA để giải phóng vị trí.
+- `configuration_invalid`: khi MCP vẫn khả dụng và lỗi thuộc về một cài đặt cục bộ của provider được tuyển chọn, hãy kiểm tra và đặt một ghi đè thời gian chạy hợp lệ. Nếu không, hãy sửa cài đặt có tên trong môi trường bắt đầu REA, sau đó khởi động lại REA. Chạy `rea doctor` để kiểm tra `runtime-configuration:`. Chạy lại `rea setup` cho client đó khi cài đặt nằm trong danh sách cho phép đăng ký, sau đó kết nối lại để tiến trình mới nhìn thấy nó.
+- `invalid_request`: sửa các trường được báo cáo từ lược đồ hiện tại hoặc trợ giúp CLI. Không lặp lại lệnh gọi không thay đổi.
 
-A restart is required to adopt a changed launch environment or registration.
-The curated runtime settings above require no REA restart. It is not the first step for a transient
-MCP drop, a capacity wait, or retained cleanup.
+Cần phải khởi động lại để áp dụng môi trường khởi chạy hoặc đăng ký đã thay đổi. Các cài đặt thời gian chạy được tuyển chọn ở trên không yêu cầu khởi động lại REA. Đó không phải là bước đầu tiên cho việc mất MCP tạm thời, chờ dung lượng hoặc dọn dẹp được lưu giữ.
 
-## Adding a runtime setting
+## Thêm một cài đặt thời gian chạy (Adding a runtime setting)
 
-1. Identify the enforcing owner and the real resource constraint. Decide whether
-   callers need a per-call argument, a runtime default, a launch-only control,
-   or a fixed limit. A registry entry must not advertise authority REA lacks.
-2. Define the value type and named numeric bounds with the domain owner. Add the
-   ID and metadata to `analysisSettings.ts` and `analysisSettingDefinitions.ts`.
-   Reuse those bounds in runtime validation, launch parsing, and error metadata.
-   Choose the application point and provider/operation associations from actual
-   consumers; a shared control need not apply to every provider.
-3. If there is a launch seed, add its parser and appropriate configuration/doctor
-   validation. Decide whether an invalid value blocks the runtime or only the
-   provider. Add it to setup's `SELECTED_REGISTRATION_SETTINGS` when it should
-   be forwarded; runtime editability does not automatically propagate it.
-4. Thread the shared reader through every applicable composition path. Resolve
-   the effective value within the accepted operation, honor explicit arguments,
-   and preserve their omission in Evidence. Keep availability checks consistent
-   with execution. A worker heap request must not be described as a measured
-   process memory limit.
-5. Enforce the value at its resource boundary and construct structured limit
-   facts there. Preserve those facts through shared error projection and copies.
-   Check cache reuse, lowered admission, transient failures, and retained cleanup
-   against the same ownership rules.
-6. Update the public contracts and affected guides, then regenerate catalogs
-   and packaged skill metadata using the repository commands. Keep externally
-   owned and fixed controls in the separate inspection constraints, not in the
-   editable registry. Validate both store semantics and a public recovery path.
+1. Xác định chủ sở hữu thực thi và ràng buộc tài nguyên thực tế. Quyết định xem bên gọi có cần đối số cho mỗi lệnh gọi, mặc định thời gian chạy, kiểm soát chỉ khởi chạy hay giới hạn cố định. Một mục đăng ký không được quảng bá quyền hạn mà REA thiếu.
+2. Xác định kiểu giá trị và ranh giới số học có tên với chủ sở hữu miền. Thêm ID và metadata vào `analysisSettings.ts` và `analysisSettingDefinitions.ts`. Tái sử dụng các ranh giới đó trong xác thực thời gian chạy, phân tích khởi chạy và metadata lỗi. Chọn điểm áp dụng và liên kết provider/thao tác từ các consumer thực tế; một kiểm soát dùng chung không cần áp dụng cho mọi provider.
+3. Nếu có hạt giống khởi chạy, hãy thêm trình phân tích cú pháp của nó và xác thực cấu hình/doctor phù hợp. Quyết định xem một giá trị không hợp lệ có chặn runtime hay chỉ chặn provider. Thêm nó vào `SELECTED_REGISTRATION_SETTINGS` của thiết lập khi nó cần được chuyển tiếp; khả năng chỉnh sửa thời gian chạy không tự động truyền bá nó.
+4. Nối reader dùng chung qua mọi đường dẫn cấu thành áp dụng. Giải quyết giá trị hiệu quả bên trong thao tác được chấp nhận, tôn trọng các đối số rõ ràng và bảo toàn sự bỏ sót của chúng trong Evidence. Giữ các kiểm tra tính sẵn sàng nhất quán với việc thực thi. Một yêu cầu heap của worker không được mô tả là giới hạn bộ nhớ tiến trình được đo lường.
+5. Thực thi giá trị tại ranh giới tài nguyên của nó và xây dựng các dữ kiện giới hạn có cấu trúc ở đó. Bảo toàn các dữ kiện đó thông qua phép chiếu lỗi dùng chung và các bản sao. Kiểm tra việc tái sử dụng bộ nhớ đệm, mức tiếp nhận hạ thấp, lỗi tạm thời và quá trình dọn dẹp được lưu giữ theo cùng các quy tắc sở hữu.
+6. Cập nhật các hợp đồng công khai và hướng dẫn bị ảnh hưởng, sau đó tạo lại danh mục và metadata kỹ năng đóng gói bằng các lệnh kho lưu trữ. Giữ các kiểm soát cố định và thuộc sở hữu bên ngoài trong các ràng buộc kiểm tra riêng biệt, không nằm trong sổ đăng ký có thể chỉnh sửa. Xác thực cả ngữ nghĩa kho lưu trữ và đường dẫn phục hồi công khai.
 
-## Tests and verification
+## Kiểm thử và xác minh (Tests and verification)
 
-Cover the unset default, accepted overrides, rejected floor/maximum values,
-and invalid syntax through the owning parser and configuration boundary.
-[`regexMatchingDeadline.test.ts`](https://github.com/morluto/rea/blob/main/src/config/regexMatchingDeadline.test.ts)
-is one example. Assert error codes, setting IDs, values, units, provenance,
-application points, and resulting behavior. Check that adapters deliver the
-canonical recovery guidance, with independent assertions for its underlying
-facts. Avoid freezing prose or deriving all expected values from the same
-registry used by the implementation; either can hide the wrong failure.
-See [test design](../testing.md#test-design-and-pruning) for the assertion policy.
+Bao phủ giá trị mặc định chưa đặt, các ghi đè được chấp nhận, các giá trị sàn/tối đa bị từ chối và cú pháp không hợp lệ thông qua trình phân tích cú pháp sở hữu và ranh giới cấu hình. [`regexMatchingDeadline.test.ts`](https://github.com/morluto/rea/blob/main/src/config/regexMatchingDeadline.test.ts) là một ví dụ. Khẳng định mã lỗi, ID cài đặt, giá trị, đơn vị, nguồn gốc, điểm áp dụng và hành vi kết quả. Kiểm tra xem các adapter có cung cấp hướng dẫn phục hồi chuẩn hay không, với các khẳng định độc lập cho các dữ kiện cơ bản của nó. Tránh đóng băng văn bản hoặc suy ra tất cả các giá trị mong đợi từ cùng một sổ đăng ký được triển khai sử dụng; cả hai đều có thể che giấu lỗi sai. Xem [thiết kế kiểm thử](../testing.md#test-design-and-pruning) cho chính sách assertion.
 
-Runtime checks cover atomic validation, stale writes, reset, runtime isolation,
-accepted-operation snapshots, and explicit argument precedence. Public MCP
-acceptance must reject an oversized ASAR, raise admission, and successfully
-retry the same complete archive on the same connection. Lowering admission must
-also refuse previously cached headers. The real Ghidra timeout verifier checks
-recovery after a live update without replacing its session. Also cover invalid
-provider-local launch configuration, repair/reset availability, default and
-custom composition paths, and preservation of structured limits through error
-copies. Gates used to overlap work and updates need bounded acknowledgements
-and release/join in `finally`.
+Các kiểm tra thời gian chạy bao gồm xác thực nguyên tử, ghi cũ, reset, cách ly thời gian chạy, bản chụp thao tác được chấp nhận và mức ưu tiên đối số rõ ràng. Việc chấp nhận MCP công khai phải từ chối một ASAR quá khổ, nâng mức tiếp nhận và thử lại thành công cùng một kho lưu trữ hoàn chỉnh trên cùng một kết nối. Hạ thấp mức tiếp nhận cũng phải từ chối các tiêu đề được lưu trong bộ nhớ đệm trước đó. Trình xác minh thời gian chờ Ghidra thực tế kiểm tra sự phục hồi sau khi cập nhật trực tiếp mà không cần thay thế phiên của nó. Đồng thời bao gồm cấu hình khởi chạy cục bộ của provider không hợp lệ, tính khả dụng của việc sửa chữa/reset, đường dẫn thành phần mặc định và tùy chỉnh, cùng việc bảo toàn các giới hạn có cấu trúc thông qua các bản sao lỗi. Các cổng được sử dụng để xếp chồng công việc và cập nhật cần có xác nhận giới hạn và giải phóng/kết hợp trong `finally`.
 
-The [verification report](../verification/runtime-analysis-settings.md) separates
-public MCP checks, simulated provider coverage, real Ghidra execution, and
-measured task costs. It does not establish real-provider behavior for every
-editable setting or active worker telemetry.
+[Báo cáo xác minh](../verification/runtime-analysis-settings.md) tách biệt các kiểm tra MCP công khai, độ bao phủ provider mô phỏng, thực thi Ghidra thực tế và chi phí tác vụ được đo lường. Nó không xác lập hành vi của provider thực tế cho mọi cài đặt có thể chỉnh sửa hoặc đo từ xa của worker đang hoạt động.
 
-## Bun standalone module graphs
+## Đồ thị mô-đun độc lập của Bun (Bun standalone module graphs)
 
-`MAX_BUN_MODULE_COUNT` admits at most 100,000 module records.
-`MAX_BUN_RETAINED_BYTES` admits at most 256 MiB of serialized graph payload and
-separately bounds retained entry metadata. Physical metadata read work is also
-limited to 256 MiB per preparation, including repeated uncached ranges. A
-256 KiB / 1,024-entry exact-range cache avoids full-page amplification. The
-combined logical path tree admits at most 250,000 distinct prefixes; this is
-checked before adding nodes, with shared prefixes counted once. The shared
-artifact expansion budget also bounds the sum of referenced member lengths. Refusals name the boundary.
-There is no runtime override; additional host memory or `NODE_OPTIONS` does not
-raise these ceilings. Use a smaller producer fixture or a separately reviewed
-reader for larger graphs. No partial extraction is claimed on admission failure.
+`MAX_BUN_MODULE_COUNT` chấp nhận tối đa 100.000 bản ghi mô-đun. `MAX_BUN_RETAINED_BYTES` chấp nhận tối đa 256 MiB payload đồ thị được tuần tự hóa và giới hạn riêng metadata mục nhập được lưu giữ. Công việc đọc metadata vật lý cũng được giới hạn ở 256 MiB cho mỗi lần chuẩn bị, bao gồm cả các phạm vi lặp lại chưa được lưu trong bộ nhớ đệm. Một bộ nhớ đệm phạm vi chính xác 256 KiB / 1.024 mục tránh việc khuếch đại toàn trang. Cây đường dẫn logic kết hợp chấp nhận tối đa 250.000 tiền tố riêng biệt; điều này được kiểm tra trước khi thêm các nút, với các tiền tố dùng chung được tính một lần. Ngân sách mở rộng hiện vật dùng chung cũng giới hạn tổng độ dài của các thành viên được tham chiếu. Sự từ chối đặt tên ranh giới. Không có ghi đè thời gian chạy; bộ nhớ máy chủ bổ sung hoặc `NODE_OPTIONS` không làm tăng các mức trần này. Sử dụng fixture producer nhỏ hơn hoặc reader được xem xét riêng cho các đồ thị lớn hơn. Không có tuyên bố trích xuất từng phần khi thất bại tiếp nhận.

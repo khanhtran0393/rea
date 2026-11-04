@@ -1,134 +1,45 @@
-# Runtime observation
+# Quan sát Runtime (Runtime observation)
 
-## Native runtime questions
+## Các câu hỏi về runtime native (Native runtime questions)
 
-Start from the requested observation. State the selected target, input, expected
-result, failure signal and stopping condition before a run. Reuse static Evidence
-to choose a function or hypothesis; `trace_native_values` follows recovered
-static value dependencies and does not measure runtime values. Prefer static
-inspection or existing capture comparison when it already answers the question.
+Bắt đầu từ quan sát được yêu cầu. Nêu rõ mục tiêu đã chọn, đầu vào, kết quả mong đợi, tín hiệu thất bại và điều kiện dừng trước khi chạy. Tái sử dụng Evidence tĩnh để chọn một hàm hoặc giả thuyết; `trace_native_values` theo sau các phụ thuộc giá trị tĩnh được khôi phục và không đo lường các giá trị runtime. Ưu tiên kiểm tra tĩnh hoặc so sánh bản ghi capture hiện có khi nó đã trả lời được câu hỏi.
 
-| Question                                                                               | Existing workflow                                                                                                                            | Host and effects                                                                                                                                                                                                                                                                                                                                      |
-| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Which selected native entry is reached, with which integer argument registers?         | `observe_native_calls` on the active Mach-O, with exact function/Objective-C breakpoints and a duration/event bound                          | macOS with LLDB and required debugger access. Launches a new owned process, stops at entries, records and continues; target execution may write files, show UI or use the network. It never attaches to an existing process. Inspect termination and partial coverage after the run.                                                                  |
-| What does caller-authored instrumentation observe?                                     | `list_frida_devices` / `list_frida_processes` when discovery is needed; `start_frida_session`, `load_frida_script`, then status/unload/close | Requires compatible installed Frida bindings and selected device access; the real REA verifier covers Linux. Attach selects an existing PID; spawn selects a program and starts it paused until `resume_frida_session`. Scripts execute in the target and can change memory, files, network activity and behavior. This is not passive inspection.    |
-| Which debugger state or controlled execution explains the behavior?                    | `start_gdb_session` and `gdb_console`, or `start_rizin_debug_session` and `rizin_debug_command`                                              | Persistent debugger workflows are Linux-only. GDB starts a debugger; console commands choose/load/attach/run targets. Rizin debug start launches the selected target and requires a durable `inferior_tty`. Both consoles are unrestricted and can change target memory/registers, run shell commands, write files and use the network.               |
-| How do terminal output, process lifetime and selected files differ between runs?       | `capture_process_scenario`, then `compare_process_captures` with compatible recorded inputs                                                  | New captures require Linux or macOS and a working native PTY backend; macOS also needs `xcrun`/Swift for ownership inspection. Capture launches an owned command with ordinary user permissions. Observation paths select snapshots, not a filesystem sandbox. Comparing retained captures does not execute targets and is also available on Windows. |
-| What does an existing desktop window show, or what changes after a declared UI action? | `observe_native_ui`; use `capture_native_ui_scenario` only for requested actions                                                             | macOS 14+ with required Screen Recording/Accessibility access. Select an existing PID/window. Observation does not launch or own the app; scenario actions can change its data or trigger network activity, and leave its state as-is.                                                                                                                |
+| Câu hỏi | Quy trình hiện có | Máy chủ và các hiệu ứng |
+| --- | --- | --- |
+| Điểm vào native nào đã chọn được tiếp cận, với các thanh ghi đối số số nguyên nào? | `observe_native_calls` trên Mach-O đang hoạt động, với các điểm dừng hàm/Objective-C chính xác và giới hạn thời lượng/sự kiện | macOS với LLDB và quyền truy cập debugger bắt buộc. Khởi chạy một tiến trình sở hữu mới, dừng tại các điểm vào, ghi lại và tiếp tục; quá trình thực thi mục tiêu có thể ghi tệp, hiển thị giao diện người dùng hoặc sử dụng mạng. Nó không bao giờ gắn kết vào một tiến trình hiện có. Kiểm tra việc chấm dứt và phạm vi một phần sau khi chạy. |
+| Can thiệp mã (instrumentation) do người gọi soạn thảo quan sát được những gì? | `list_frida_devices` / `list_frida_processes` khi cần khám phá; `start_frida_session`, `load_frida_script`, sau đó kiểm tra status/unload/close | Yêu cầu các binding Frida tương thích đã cài đặt và quyền truy cập thiết bị đã chọn; trình xác minh REA thực tế bao gồm Linux. Lệnh attach chọn một PID hiện có; lệnh spawn chọn một chương trình và khởi động nó ở trạng thái tạm dừng cho đến khi gọi `resume_frida_session`. Script thực thi bên trong mục tiêu và có thể thay đổi bộ nhớ, tệp tin, hoạt động mạng và hành vi. Đây không phải là kiểm tra thụ động. |
+| Trạng thái trình gỡ lỗi hoặc thực thi có kiểm soát nào giải thích được hành vi? | `start_gdb_session` và `gdb_console`, hoặc `start_rizin_debug_session` và `rizin_debug_command` | Các quy trình làm việc với trình gỡ lỗi liên tục chỉ hỗ trợ Linux. GDB khởi động một debugger; các lệnh console chọn/nạp/gắn kết/chạy mục tiêu. Lệnh start của Rizin debug khởi chạy mục tiêu đã chọn và yêu cầu một `inferior_tty` bền vững. Cả hai console đều không bị hạn chế và có thể thay đổi bộ nhớ/thanh ghi mục tiêu, chạy lệnh shell, ghi tệp và sử dụng mạng. |
+| Đầu ra terminal, vòng đời tiến trình và các tệp đã chọn khác nhau như thế nào giữa các lần chạy? | `capture_process_scenario`, sau đó `compare_process_captures` với các đầu vào đã ghi tương thích | Các bản ghi capture mới yêu cầu Linux hoặc macOS và backend PTY native hoạt động; macOS cũng cần `xcrun`/Swift để kiểm tra quyền sở hữu. Capture khởi chạy một lệnh sở hữu với quyền người dùng thông thường. Các đường dẫn quan sát chọn bản chụp, không phải là hộp cát hệ thống tệp. So sánh các bản ghi capture được lưu giữ không thực thi mục tiêu và cũng khả dụng trên Windows. |
+| Một cửa sổ ứng dụng desktop hiện có hiển thị những gì, hoặc điều gì thay đổi sau một hành động giao diện người dùng được khai báo? | `observe_native_ui`; chỉ sử dụng `capture_native_ui_scenario` cho các hành động được yêu cầu | macOS 14+ với quyền Ghi màn hình (Screen Recording) / Trợ năng (Accessibility) bắt buộc. Chọn một PID/cửa sổ hiện có. Việc quan sát không khởi chạy hoặc sở hữu ứng dụng; các hành động theo kịch bản có thể thay đổi dữ liệu của ứng dụng hoặc kích hoạt hoạt động mạng, và để lại trạng thái nguyên vẹn như hiện tại. |
 
-Close each persistent session with its matching tool. `close_frida_session`
-unloads scripts and detaches; it does not kill the target. A still-paused spawn
-is resumed only after instrumentation cleanup is confirmed. GDB and Rizin close
-can detach a live inferior and let it continue only after verifying its durable
-output terminal. When disposition or cleanup is unresolved, preserve the owned
-session and reported recovery; do not assume that closing the debugger terminated
-the target. Process capture and LLDB call observation instead own their launched
-processes and report their termination/cleanup outcome. Cancellation is not proof
-that cleanup completed.
+Đóng từng phiên liên tục bằng công cụ tương ứng của nó. `close_frida_session` dỡ bỏ các script và ngắt gắn kết; nó không dừng tiến trình mục tiêu. Một tiến trình spawn vẫn đang tạm dừng chỉ được tiếp tục sau khi việc dọn dẹp can thiệp mã được xác nhận. Việc đóng GDB và Rizin có thể ngắt gắn kết một tiến trình con trực tiếp và để nó tiếp tục chỉ sau khi xác minh terminal đầu ra bền vững của nó. Khi việc định đoạt hoặc dọn dẹp chưa được giải quyết, hãy bảo toàn các điểm chưa xác định về vòng đời.
 
-Unrestricted GDB/Rizin commands and relevant start/close operations retire an
-active binary-analysis session in the same MCP server. Close an active Ghidra
-session explicitly first; after target effects settle, reopen the artifact before
-new static analysis. A Cutter bridge command is likewise unrestricted and may
-affect its GUI/target; it is not a passive native observation substitute.
+## Quan sát thụ động và chủ động trên Trình duyệt / Electron (Browser and Electron observation)
 
-To test a static hypothesis across two builds, retain compatible static
-comparison Evidence and `compare_process_captures` Evidence. Supply explicit
-finding/dimension mappings to `correlate_static_and_runtime`. It does not ingest
-arbitrary Frida, LLDB or debugger traces, auto-match names, or prove causality
-from cochange. Preserve those traces as their own Evidence and leave unobserved
-behavior unknown. Record truncation, unmatched breakpoints, changed target
-identity and cleanup uncertainty as limitations, rather than treating no retained
-event as proof that the behavior never occurs.
+Bắt đầu công việc trình duyệt thụ động với `list_browser_targets`; bắt đầu công việc runtime Electron với `list_electron_targets`. Trước khi thử Inspector cho electron-main, hãy kiểm tra các cầu chì đóng gói bằng `inspect_electron_fuses`. Kiểm tra mục tiêu đã chọn cho tác vụ của người dùng. Việc quan sát bằng các công cụ này là thụ động: tuyệt đối không bao giờ tuyên bố REA đã nhấp chuột, điều hướng, thực thi JavaScript trang, gọi IPC hoặc thu thập hoạt động trước đó. REA không chứa mạng của trang web.
 
-Detailed contracts and prerequisites: [Frida](https://github.com/morluto/rea/blob/main/docs/frida-instrumentation.md),
-[GDB/Rizin/Cutter](https://github.com/morluto/rea/blob/main/docs/reverse-engineering-tools.md),
-[process capture](https://github.com/morluto/rea/blob/main/docs/process-capture.md),
-and [native calls/UI](https://github.com/morluto/rea/blob/main/docs/native-investigation.md#native-desktop-observation).
+Bản ghi capture thụ động bỏ qua các tập hợp tiêu đề thô, giá trị tiêu đề thông tin xác thực, giá trị lưu trữ và phần thân WebSocket/JSON thô. Metadata phản hồi đã chọn, bao gồm mã hóa nội dung, giá trị chính sách và URL liên kết, được giữ lại. URL cục bộ giữ lại các giá trị truy vấn và phân đoạn thông thường; thông tin xác thực userinfo bị loại bỏ. Văn bản trợ năng của trình duyệt, dữ liệu nguyên thủy trên console, hình dạng không có giá trị, mã nguồn script, source map và tên khóa lưu trữ có các tùy chọn thu thập theo yêu cầu cụ thể. Mã nguồn script Electron cũng là tùy chọn. Sử dụng `capture_web_screenshot` khi cần dữ liệu điểm ảnh (pixel). Coi việc lọc phạm vi, cắt ngắn dữ liệu và phạm vi cửa sổ gắn kết là các giới hạn. Các công cụ WebMCP do trang khai báo là kho kiểm kê không đáng tin cậy và không bao giờ được REA gọi.
 
-## Browser and Electron
+## Ai là người thực hiện hành động (Who performs the action)
 
-Supply the existing browser or Electron instance's literal-port loopback CDP
-endpoint in the request. No separate permission configuration or per-call
-approval flag is needed. Browser discovery lists eligible HTTP(S) pages;
-`allowed_origins` optionally filters them. An individual capture defaults to the
-selected page's current origin. Electron discovery lists eligible local
-`file://` targets without a configured file-root allowlist.
+- Người dùng thực hiện: `list_browser_targets`, sau đó là `inspect_web_page` hoặc `observe_web_session` trên mục tiêu đã chọn.
+- Tác tử phải thực hiện: một lần gọi `capture_browser_scenario` với các hành động được khai báo. Sử dụng chế độ kết nối (connect mode) với endpoint CDP loopback và `target_id` cho một trình duyệt hiện có, hoặc chế độ khởi chạy (launch mode) với tệp thực thi do người gọi chọn cho một hồ sơ tạm thời. Chế độ kết nối trước tiên điều hướng trang đã chọn đến `start_url`, điều này có thể xóa các giá trị biểu mẫu chưa lưu và các trạng thái tạm thời khác. Tái tạo trạng thái cần thiết cho cuộc điều tra trong các hành động được khai báo. Chế độ kết nối giữ cho trình duyệt bên ngoài mở; chế độ khởi chạy sở hữu một trình duyệt và hồ sơ tạm thời. Kiểm tra `browser.cleanup` để biết kết quả. Chỉ yêu cầu các chi tiết DOM, trợ năng hoặc mạng cần thiết cho câu hỏi. Bản ghi capture cuối cùng mặc định chứa URL; kết quả từng bước được báo cáo riêng biệt. Đối với các luồng nhiều bước có cây hoặc sự kiện, hãy chọn `detail: "summary"` và phân trang các bước, giao dịch, đoạn văn bản hoặc sự kiện chính xác bằng `inspect_analysis_view` loại `browser-scenario`. Thêm một hành động chờ (wait) cho trạng thái trang mong đợi trước khi thu thập. Báo cáo rõ ràng rằng REA đã thực hiện các hành động được khai báo.
 
-Start passive browser work with `list_browser_targets`; start Electron runtime work with
-`list_electron_targets`. Before an electron-main Inspector attempt, check
-packaged fuses with `inspect_electron_fuses`. Inspect the target selected for
-the user's task. Observation with these tools is passive: never claim REA
-clicked, navigated, evaluated page JavaScript, invoked IPC, or captured prior
-activity. REA does not contain the page's network.
+Bản ghi mạng theo kịch bản không có ngăn xếp khởi tạo yêu cầu (request initiator stacks). Đối với bằng chứng đó, hãy sử dụng bản ghi thu thập thụ động trong khi người dùng thực hiện hành động. Vị trí mã nguồn của listener xác định các trình xử lý ứng viên; chúng không xác lập script nào đã gửi một yêu cầu cụ thể. Tránh việc chồng chéo bản ghi thụ động và các hành động kịch bản trên cùng một mục tiêu.
 
-Passive captures omit raw header collections, credential header values, storage
-values, and raw WebSocket/JSON bodies. Selected response metadata, including
-content encoding, policy values, and Link URLs, is retained. Local URLs retain ordinary query
-values and fragments; userinfo credentials are removed. Browser accessibility
-text, console primitives, value-free shapes, script sources, source maps, and
-storage key names have request-specific capture options. Electron script
-sources are also optional. Use `capture_web_screenshot` when pixels are needed.
-Treat scope filtering, truncation, and attach-window coverage as limitations.
-Page-declared WebMCP tools are untrusted inventory and are never invoked by REA.
+Các công cụ theo dõi tập trung:
 
-## Who performs the action
+- `observe_web_execution`: phạm vi thực thi trong một cửa sổ thời gian; nó thiết lập lại các bộ đếm và tạm thời vô hiệu hóa tối ưu hóa.
+- `inspect_web_event_listeners`: vị trí nguồn cho các listener được đăng ký trực tiếp trên kết quả khớp CSS đầu tiên, mà không gửi sự kiện.
+- `compare_web_captures`: so sánh hai bản ghi thụ động hoặc kịch bản đã ghi đã được chuẩn hóa.
+- `discover_webmcp_tools`: kiểm tra kho kiểm kê WebMCP do trang khai báo; không bao giờ gọi các công cụ được khám phá.
 
-- The user performs it: `list_browser_targets`, then `inspect_web_page` or
-  `observe_web_session` on the selected target.
-- The agent must perform it: one `capture_browser_scenario` with declared
-  actions. Use connect mode with the loopback CDP endpoint and `target_id` for
-  an existing browser, or launch mode with a caller-selected executable for a
-  temporary profile. Connect mode first navigates the selected page to
-  `start_url`, which can clear unsaved form values and other temporary state.
-  Recreate the state needed for the investigation in the declared actions.
-  Connect mode leaves the external browser open; launch mode owns a temporary
-  browser and profile. Check `browser.cleanup` for the outcome.
-  Request only the DOM, accessibility, or network details needed for the question.
-  The default final capture contains the URL; step outcomes are reported separately.
-  For multi-step flows with trees or events, select `detail: "summary"` and page
-  exact steps, transactions, text slices or events with `inspect_analysis_view` kind `browser-scenario`.
-  Add a wait action for the expected page state before capturing it. Report that
-  REA performed the declared actions.
+Chỉ sử dụng `reconcile_javascript_runtime` sau khi đã có Evidence ứng dụng tĩnh và Evidence trình duyệt/Electron thụ động. Ưu tiên danh tính mã băm của nguồn được thu thập; báo cáo sự không khớp giữa đường dẫn/mã băm dưới dạng lỗi không khớp và bảo toàn tính mơ hồ. Các ánh xạ đường dẫn rõ ràng là đầu vào suy luận và không bao giờ mở rộng quyền hạn của hệ thống tệp hoặc CDP. Một gói bundle được quan sát thấy tại thời điểm runtime không chứng minh rằng mọi mô-đun chứa bên trong nó đều đã được thực thi.
 
-Scenario network records have no request initiator stacks. For that evidence,
-use passive capture while the user performs the action. Listener source locations
-identify candidate handlers; they do not establish which script sent a particular
-request. Avoid overlapping passive capture and scenario actions on the same target.
+## Gỡ lỗi lưu lượng với Fiddler Everywhere (Fiddler Everywhere traffic debugging)
 
-Focused follow-up tools:
+Đối với các bản ghi capture lớn đã lưu, hãy yêu cầu `detail: "summary"`, sau đó phân trang Evidence được lưu giữ bằng `inspect_analysis_view` và `view: {kind: "capture", detail: "preview", offset: 0, limit: 20}`. Chỉ chọn các trang bản ghi đầy đủ cho các tiêu đề, metadata hoặc payload cần thiết; các chế độ xem sẽ đọc đối tượng cha lịch sử mà không cần lặp lại việc giải mã bản ghi.
 
-- `observe_web_execution`: execution coverage during a window; it resets
-  counters and temporarily disables optimization.
-- `inspect_web_event_listeners`: source locations for listeners registered
-  directly on the first CSS match, without dispatching an event.
-- `compare_web_captures`: two normalized passive captures or recorded scenarios.
-- `discover_webmcp_tools`: inspect page-declared WebMCP inventory; never invoke
-  the discovered tools.
+Đối với các phần thân protobuf/gRPC đã chọn, hãy giữ các byte thô làm nguồn và sử dụng `inspect_analysis_view` loại `protobuf`, tập hợp `bodies`, `frames` hoặc `fields`. Gom nhóm các số thứ tự bản ghi chính xác và số/ID trường, đồng thời chỉ chọn `schema_value` hoặc `text` khi cần thiết. Cung cấp một tập hợp bộ mô tả cục bộ và kiểu thông điệp để diễn giải lược đồ; các payload bị nén vẫn là chưa xác định.
 
-Use `reconcile_javascript_runtime` only after static application Evidence and
-passive browser/Electron Evidence exist. Prefer captured-source digest identity;
-report path/digest disagreement as a mismatch and preserve ambiguity. Explicit
-path mappings are inference inputs and never broaden filesystem or CDP authority.
-A bundle observed at runtime does not prove every contained module executed.
-
-## Fiddler Everywhere traffic debugging
-
-For large saved captures, request `detail: "summary"`, then page retained Evidence
-with `inspect_analysis_view` and `view: {kind: "capture", detail: "preview", offset: 0, limit: 20}`.
-Select complete record pages only for needed headers, metadata or payloads; views
-read the historical parent without repeating capture decoding.
-
-For selected protobuf/gRPC bodies, keep raw bytes as the source and use
-`inspect_analysis_view` kind `protobuf`, collection `bodies`, `frames` or
-`fields`. Batch exact record ordinals and field numbers/IDs, and select
-`schema_value` or `text` only when needed. Supply a local descriptor set and
-message type for schema interpretation; compressed payloads remain unknown.
-
-Inspect native `.saz` snapshots with `inspect_web_network_capture` and
-`format: "saz"`; encrypted archives are unsupported. For live
-traffic analysis, connect Everywhere's separate MCP server and use its
-advertised session tools with an explicit `sessionsSource` (`LiveTraffic` or
-`AgentCalls`). Preserve existing sessions and filters when inspecting a
-recorded run. See the [capture and MCP guide](https://github.com/morluto/rea/blob/main/docs/web-network-captures.md)
-for the workflow and Telerik's public setup and traffic-debugging skills.
+Kiểm tra các bản chụp `.saz` gốc bằng `inspect_web_network_capture` với `format: "saz"`; các tệp lưu trữ được mã hóa không được hỗ trợ. Để phân tích lưu lượng trực tiếp, hãy kết nối server MCP riêng của Everywhere và sử dụng các công cụ phiên được quảng bá của nó với `sessionsSource` rõ ràng (`LiveTraffic` hoặc `AgentCalls`). Bảo toàn các phiên và bộ lọc hiện có khi kiểm tra một lần chạy đã ghi. Xem [hướng dẫn capture và MCP](https://github.com/morluto/rea/blob/main/docs/web-network-captures.md) để biết quy trình làm việc cũng như các skill thiết lập và gỡ lỗi lưu lượng công khai của Telerik.

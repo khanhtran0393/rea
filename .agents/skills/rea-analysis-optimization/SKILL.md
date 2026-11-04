@@ -1,118 +1,56 @@
 ---
 name: rea-analysis-optimization
-description: Optimize REA providers and shared analysis workflows for agent context, latency, CPU, and memory while preserving correctness and Evidence. Use for analysis bottlenecks and cache or query design; CI/test-suite optimization belongs to rea-ci-tests-audit.
+description: Tối ưu hóa các provider và quy trình phân tích dùng chung của REA về ngữ cảnh tác tử, độ trễ, CPU và bộ nhớ trong khi vẫn bảo toàn tính chính xác và Evidence. Sử dụng cho các điểm nghẽn phân tích và thiết kế bộ nhớ đệm hoặc truy vấn; tối ưu hóa bộ kiểm thử/CI thuộc về rea-ci-tests-audit.
 ---
 
-# REA analysis optimization
+# Tối ưu hóa phân tích REA (REA analysis optimization)
 
-Find a concrete source of unnecessary work, change it at its owner, and verify
-equivalent completed investigations. A useful outcome can also be a measured
-decision to leave an implementation alone.
+Tìm nguồn phát sinh công việc không cần thiết cụ thể, thay đổi nó tại chủ thể sở hữu và xác minh các cuộc điều tra hoàn chỉnh tương đương. Một kết quả hữu ích cũng có thể là quyết định có đo lường về việc giữ nguyên một triển khai hiện có.
 
-Follow the checkout's [performance priorities](../../../AGENTS.md#performance),
-[tool design](../../../docs/tool-design.md), and
-[testing guide](../../../docs/testing.md). This skill supplies an optimization
-workflow, not additional permission to execute targets, publish, or merge.
-Use the current contracts, provider prerequisites, and user authorization.
+Tuân theo [các ưu tiên hiệu năng](../../../AGENTS.md#performance), [thiết kế công cụ](../../../docs/tool-design.md) và [hướng dẫn kiểm thử](../../../docs/testing.md) của bản checkout. Kỹ năng này cung cấp một quy trình tối ưu hóa, không phải cấp thêm quyền thực thi mục tiêu, xuất bản hoặc merge. Sử dụng các hợp đồng hiện tại, điều kiện tiên quyết của provider và ủy quyền của người dùng.
 
-Reserve performance measurements for changes that target performance or have a
-concrete regression concern. Routine cleanup uses correctness checks and does
-not require this optimization workflow or synthetic benchmarks merely because
-helper calls, imports, or representations change.
+Dành riêng việc đo lường hiệu năng cho các thay đổi nhắm vào hiệu năng hoặc có lo ngại cụ thể về suy giảm hiệu năng (regression). Dọn dẹp định kỳ sử dụng các kiểm tra tính đúng đắn và không yêu cầu quy trình tối ưu hóa này hoặc các benchmark tổng hợp chỉ vì các lệnh gọi helper, import hoặc biểu diễn thay đổi.
 
-Read [the Kuna case study](references/kuna-case-study.md) when selecting a
-reuse strategy or interpreting a benchmark. Its pinned observations illustrate
-tradeoffs; they are not current-provider guarantees or universal speedups.
+Đọc [nghiên cứu điển hình Kuna](references/kuna-case-study.md) khi chọn chiến lược tái sử dụng hoặc diễn giải một benchmark. Các quan sát được ghim của nó minh họa cho các sự đánh đổi; chúng không phải là bảo đảm của provider hiện tại hoặc sự tăng tốc phổ quát.
 
-## Pin the question and the correctness oracle
+## Ghim câu hỏi và chuẩn đối sánh tính đúng đắn (Pin the question and the correctness oracle)
 
-Describe the analyst's completed task, including the facts and relationships
-needed to answer it, requested detail, source access, and meaningful unknowns.
-Choose a representative real artifact and a small or empty case. Record the
-baseline revision, target digest, engine identity, options, host, and entrypoint.
-Use a separate checkout for changes without disturbing other work.
+Mô tả tác vụ đã hoàn thành của nhà phân tích, bao gồm các dữ kiện và mối quan hệ cần thiết để trả lời câu hỏi đó, chi tiết được yêu cầu, quyền truy cập nguồn và các điểm chưa xác định có ý nghĩa. Chọn một hiện vật thực tế đại diện và một trường hợp nhỏ hoặc rỗng. Ghi lại phiên bản gốc (baseline revision), mã băm mục tiêu, danh tính engine, tùy chọn, máy chủ và điểm vào. Sử dụng một bản checkout riêng cho các thay đổi mà không làm ảnh hưởng đến công việc khác.
 
-Establish an oracle independent of the changed implementation: source-built
-fixture expectations, independently mapped file bytes, or a native producer
-paired with checks of its interpretation. Comparing two wrappers around the
-same faulty decoder does not establish correctness. Preserve address widths,
-same-address alternatives, unresolved endpoints, coverage, and source linkage.
-An empty result proves absence only within the actually examined scope.
+Thiết lập một chuẩn đối sánh (oracle) độc lập với triển khai đã thay đổi: kỳ vọng fixture được xây dựng từ nguồn, các byte tệp được ánh xạ độc lập hoặc một producer native ghép cặp với các kiểm tra về cách diễn giải của nó. So sánh hai lớp bọc xung quanh cùng một bộ giải mã lỗi không chứng minh được tính đúng đắn. Bảo toàn độ rộng địa chỉ, các giải pháp thay thế cùng địa chỉ, các điểm cuối chưa giải quyết, độ bao phủ và liên kết nguồn. Kết quả rỗng chỉ chứng minh sự vắng mặt trong phạm vi thực tế được kiểm tra.
 
-## Locate the earliest unnecessary work
+## Xác định vị trí công việc không cần thiết sớm nhất (Locate the earliest unnecessary work)
 
-Trace one public CLI or MCP task through shared application code to its producer.
-Measure relevant phases: admission and identity checks, native analysis,
-decoding, lookup, projection, serialization, Evidence retention, and cleanup.
-Include catalog discovery and extra calls when they affect the completed task.
+Lần vết một tác vụ CLI hoặc MCP công khai thông qua mã ứng dụng dùng chung tới producer của nó. Đo lường các giai đoạn liên quan: kiểm tra danh tính và đầu vào, phân tích native, giải mã, tra cứu, chiếu (projection), tuần tự hóa, lưu giữ Evidence và dọn dẹp. Bao gồm khám phá danh mục và các lệnh gọi bổ sung khi chúng ảnh hưởng đến tác vụ đã hoàn thành.
 
-Use the evidence to choose the smallest structural correction:
+Sử dụng bằng chứng để chọn sự hiệu chỉnh cấu trúc nhỏ nhất:
 
-| Observed cost                     | Candidate correction                                       | Condition to establish                                                               |
-| --------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Repeated scans of validated facts | Reuse existing order or lookup structure                   | The owner establishes ordering and identity; every matching alternative survives     |
-| Repeated equivalent engine work   | Share a validated result or in-flight producer             | Inputs, freshness, lifetime, and per-caller outcomes remain explicit                 |
-| Full reports for selected facts   | Push selection or projection to the earliest capable owner | Required facts and evidence remain reachable; examined coverage is reported          |
-| Large temporary transport buffers | Decode incrementally or use bounded source reads           | Validate the whole admitted document; retained facts and copies still consume memory |
-| Many repeated homogeneous reads   | Share admission, decoding, or batch work                   | Preserve item identity, order where required, and individual failures                |
+| Chi phí quan sát được | Đề xuất khắc phục | Điều kiện cần xác lập |
+| :--- | :--- | :--- |
+| Quét lặp lại các dữ kiện đã xác thực | Tái sử dụng cấu trúc tra cứu hoặc thứ tự hiện có | Chủ thể xác lập thứ tự và danh tính; mọi lựa chọn thay thế phù hợp đều được bảo toàn |
+| Công việc engine tương đương bị lặp lại | Chia sẻ kết quả đã xác thực hoặc producer đang chạy | Đầu vào, độ tươi mới, vòng đời và kết quả cho mỗi bên gọi vẫn rõ ràng |
+| Báo cáo đầy đủ cho các dữ kiện được chọn | Đẩy việc chọn lọc hoặc chiếu sang chủ thể có khả năng sớm nhất | Các dữ kiện và bằng chứng bắt buộc vẫn có thể truy cập được; độ bao phủ đã kiểm tra được báo cáo |
+| Bộ đệm truyền tải tạm thời quá lớn | Giải mã tăng dần hoặc sử dụng các lần đọc nguồn có giới hạn | Xác thực toàn bộ tài liệu được chấp nhận; các dữ kiện và bản sao được lưu giữ vẫn tiêu tốn bộ nhớ |
+| Nhiều lần đọc đồng nhất lặp đi lặp lại | Chia sẻ việc tiếp nhận, giải mã hoặc xử lý hàng loạt | Bảo toàn danh tính mục, thứ tự khi được yêu cầu và các lỗi riêng lẻ |
 
-Do not introduce an index, generic cache, batch endpoint, or orchestration layer
-without identifying the work it removes and its maintenance/resource cost.
-Projection after materializing a full report may reduce output while leaving
-analysis time and peak memory unchanged. Fix missing or incorrect facts before
-benchmarking an alternative composition against a better-covered workflow.
+Không đưa vào một chỉ mục, bộ nhớ đệm chung, endpoint hàng loạt hoặc lớp điều phối mà không xác định công việc nó loại bỏ và chi phí duy trì/tài nguyên của nó. Việc chiếu sau khi hiện thực hóa một báo cáo đầy đủ có thể làm giảm đầu ra trong khi vẫn giữ nguyên thời gian phân tích và bộ nhớ đỉnh. Sửa chữa các dữ kiện bị thiếu hoặc không chính xác trước khi benchmark một bố cục thay thế so với một quy trình có độ bao phủ tốt hơn.
 
-## Keep one interpretation and a defined reuse lifetime
+## Giữ một cách diễn giải duy nhất và vòng đời tái sử dụng xác định (Keep one interpretation and a defined reuse lifetime)
 
-Let the producer boundary validate and normalize facts once. Consumers query
-that representation through the shared CLI/MCP implementation; adapters should
-not rebuild relationships or independently reinterpret raw reports. Keep lookup
-identity separate from display formatting. Reuse contracts when their intent
-matches, honoring requested detail and complete Evidence access.
+Để ranh giới producer xác thực và chuẩn hóa các dữ kiện một lần duy nhất. Các consumer truy vấn biểu diễn đó thông qua triển khai CLI/MCP dùng chung; adapter không nên xây dựng lại các mối quan hệ hoặc độc lập diễn giải lại các báo cáo thô. Giữ danh tính tra cứu tách biệt khỏi định dạng hiển thị. Tái sử dụng hợp đồng khi mục đích của chúng khớp nhau, tôn trọng chi tiết được yêu cầu và quyền truy cập Evidence đầy đủ.
 
-For every cache or shared producer, state its key, owner, invalidation, retained
-size, and lifetime. Account for result-affecting target bytes, engine contents,
-analysis options, architecture/load mapping, and parser/schema versions where
-they affect reuse. Validate live state before calling a cached observation
-current. Cache a refusal only when it is deterministic for that validated key;
-malformed, partial, transient, or cancelled attempts need explicit retry policy.
+Đối với mỗi bộ nhớ đệm hoặc producer dùng chung, hãy nêu rõ khóa (key), chủ sở hữu, cơ chế vô hiệu hóa (invalidation), kích thước lưu giữ và vòng đời. Giải trình cho các byte mục tiêu ảnh hưởng đến kết quả, nội dung engine, tùy chọn phân tích, ánh xạ kiến trúc/tải và phiên bản trình phân tích cú pháp/lược đồ khi chúng ảnh hưởng đến việc tái sử dụng. Xác thực trạng thái trực tiếp trước khi gọi một quan sát được lưu trong bộ nhớ đệm là hiện hành. Chỉ lưu vào bộ nhớ đệm một sự từ chối khi nó có tính tất định cho khóa đã được xác thực đó; các nỗ lực không đúng định dạng, từng phần, tạm thời hoặc bị hủy bỏ cần chính sách thử lại rõ ràng.
 
-One cancelled waiter must not invalidate a successful peer. Preserve producer
-failure context and each caller's cancellation reason. Retain ownership and
-capacity charges until shared work and cleanup settle; preserve completed
-observations when cleanup fails. Exercise invalidation, concurrent consumers,
-last-waiter cancellation, close, and cleanup retry when those paths change.
+Một bên chờ bị hủy không được làm mất hiệu lực của bên ngang hàng thành công. Bảo toàn ngữ cảnh lỗi của producer và lý do hủy của mỗi bên gọi. Giữ quyền sở hữu và chi phí dung lượng cho đến khi công việc dùng chung và dọn dẹp ổn định; bảo toàn các quan sát đã hoàn thành khi quá trình dọn dẹp thất bại. Thực thi việc vô hiệu hóa, các consumer đồng thời, hủy bên chờ cuối cùng, đóng và thử lại dọn dẹp khi các đường dẫn đó thay đổi.
 
-Bound the process family and retained state, not just a parent heap or worker
-count. Account for decoding and serialization expansion before allocation.
-Choose CPU, memory, concurrency, and disk limits from the host and workload;
-stop before OOM and verify owned cleanup. A guard-stopped task is incomplete.
-Do not replace a transport buffer cap with an unbounded retained inventory or
-hide partial results behind a success status.
+Giới hạn nhóm tiến trình và trạng thái lưu giữ, không chỉ là heap cha hoặc số lượng worker. Tính đến sự mở rộng giải mã và tuần tự hóa trước khi cấp phát. Chọn giới hạn CPU, bộ nhớ, đồng thời và đĩa từ máy chủ và khối lượng công việc; dừng lại trước OOM và xác minh việc dọn dẹp thuộc sở hữu. Một tác vụ bị dừng bởi bộ bảo vệ là chưa hoàn thành. Không thay thế giới hạn bộ đệm truyền tải bằng một kho kiểm kê lưu giữ không giới hạn hoặc che giấu các kết quả từng phần đằng sau trạng thái thành công.
 
-## Compare completed tasks and limit the claim
+## So sánh các tác vụ đã hoàn thành và giới hạn nhận định (Compare completed tasks and limit the claim)
 
-Run the affected real public workflow before and after with equivalent inputs,
-results, coverage, and Evidence semantics. Include small inputs so setup costs
-and regressions are visible. Distinguish fresh sessions, warm runtime caches,
-and OS file caches. Alternate or repeat runs when variance affects the decision.
-Choose meaningful boundary regressions for cases the actual engine cannot
-reliably reproduce; a fake engine does not qualify a real provider.
+Chạy quy trình công khai thực tế bị ảnh hưởng trước và sau với các đầu vào, kết quả, độ bao phủ và ngữ nghĩa Evidence tương đương. Bao gồm các đầu vào nhỏ để chi phí thiết lập và sự suy giảm hiệu năng có thể nhìn thấy được. Phân biệt giữa phiên mới, bộ nhớ đệm runtime ấm và bộ nhớ đệm tệp hệ điều hành. Luân phiên hoặc lặp lại các lần chạy khi phương sai ảnh hưởng đến quyết định. Chọn các kiểm tra suy giảm ranh giới có ý nghĩa cho các trường hợp engine thực tế không thể tái hiện một cách đáng tin cậy; một engine giả mạo không đủ điều kiện cho một provider thực tế.
 
-Report task outcome, relevant phase timings, total elapsed and CPU time, peak
-process-family memory and its accounting method, resource stops, and cleanup.
-Check the payload exit status as well as the profiler's. Keep failed attempts
-and identify unmeasured costs; a passing retry does not explain a failure.
+Báo cáo kết quả tác vụ, thời gian từng giai đoạn liên quan, tổng thời gian trôi qua và thời gian CPU, bộ nhớ đỉnh của nhóm tiến trình và phương pháp hạch toán của nó, các điểm dừng tài nguyên và quá trình dọn dẹp. Kiểm tra trạng thái thoát của payload cũng như của trình định hình (profiler). Giữ lại các lần thử thất bại và xác định các chi phí chưa được đo lường; một lần thử lại thành công không giải thích được lý do thất bại.
 
-For token claims, count schemas/discovery, arguments, replies, retries, and
-continuations needed to finish the task. Label tokenizer estimates separately
-from actual model usage and record the client/catalog behavior. Smaller JSON
-alone establishes neither fewer model tokens nor better investigation quality.
-Do not claim a complex-software advantage without completed representative
-investigations and comparable correctness/coverage.
+Đối với các nhận định về token, hãy đếm lược đồ/khám phá, đối số, câu trả lời, lần thử lại và các phần tiếp theo cần thiết để hoàn thành tác vụ. Gán nhãn các ước tính của tokenizer tách biệt khỏi mức sử dụng mô hình thực tế và ghi lại hành vi của client/danh mục. Chỉ riêng JSON nhỏ hơn không xác lập được việc sử dụng ít token mô hình hơn cũng như chất lượng điều tra tốt hơn. Không khẳng định lợi thế về phần mềm phức tạp mà không có các cuộc điều tra đại diện đã hoàn thành và tính đúng đắn/độ bao phủ có thể so sánh được.
 
-Finish with the bottleneck, owning change, preserved semantics, executed
-checks, before/after measurements, and remaining limits. Keep any integration
-record current with its tested revision and distinguish merged production work
-from experiment-only code. Stop when the demonstrated bottleneck is resolved
-or further benefit remains speculative.
+Kết thúc với điểm nghẽn, thay đổi sở hữu, ngữ nghĩa được bảo toàn, các kiểm tra đã thực thi, đo lường trước/sau và các giới hạn còn lại. Giữ cho bất kỳ bản ghi tích hợp nào luôn cập nhật với phiên bản đã thử nghiệm và phân biệt công việc production đã merge với mã chỉ thử nghiệm. Dừng lại khi điểm nghẽn được chứng minh đã được giải quyết hoặc lợi ích tiếp theo vẫn chỉ là suy đoán.

@@ -1,129 +1,34 @@
-# Evidence, comparison, and verification workflows
+# Quy trình làm việc với Bằng chứng, So sánh và Xác minh (Evidence, comparison, and verification workflows)
 
-Evidence-producing tools return the complete Evidence record directly in MCP
-`structuredContent` and CLI JSON. Read `normalized_result` for operation data,
-and cite `evidence_id` when another tool or your explanation needs a stable
-reference. Preserve authority, limitations, coverage, and residual unknowns. If a result
-is incomplete or paginated, continue only when the remaining data matters to
-the task; do not fetch a bundle or resource merely to read a result already
-returned inline. When complete `inspect_binary_layout` or
-`analyze_javascript_application` Evidence is already retained, call
-`inspect_analysis_view` for a summary, one section/symbol/module, or a stable
-page instead of repeating the producer.
+Các công cụ tạo bằng chứng (Evidence-producing tools) trả về bản ghi Evidence đầy đủ trực tiếp trong `structuredContent` của MCP và JSON của CLI. Đọc `normalized_result` để lấy dữ liệu thao tác, và trích dẫn `evidence_id` khi một công cụ khác hoặc phần giải thích của bạn cần một tham chiếu ổn định. Bảo toàn thẩm quyền, các giới hạn, phạm vi bao phủ và các điểm chưa xác định còn lại. Nếu một kết quả chưa đầy đủ hoặc được phân trang, chỉ tiếp tục khi dữ liệu còn lại thực sự quan trọng đối với tác vụ; không nạp một gói bundle hoặc tài nguyên chỉ để đọc lại kết quả đã được trả về nội tuyến. Khi Evidence đầy đủ của `inspect_binary_layout` hoặc `analyze_javascript_application` đã được lưu giữ, hãy gọi `inspect_analysis_view` để lấy bản tóm tắt, một section/ký hiệu/mô-đun, hoặc một trang ổn định thay vì lặp lại thao tác tạo ban đầu.
 
-Completed `inspect_artifact` inventory also supports a summary and
-`view: {kind: "inventory", collection: "occurrences", logical_paths: ["package.json", "main.js"]}`.
-Omit `logical_paths` to page all available occurrences; `[]` selects none.
-Other inventory collections are `nodes`, `edges` and
-`integrity_contradictions`. Keep `source_complete` separate from page exhaustion:
-a missing match in partial source Evidence does not establish absence. Use the
-returned parent Evidence ID for subsequent views and export before closing the
-session when the source must survive it.
-When `tools/list` advertises `inspect_artifact.detail`, request `"summary"` to
-retain its complete source and receive that view immediately. Without that
-advertised choice, keep the existing complete call. CLI inspection returns
-portable complete Evidence; save it before projecting a selected inline view.
+Bản kiểm kê đã hoàn thành của `inspect_artifact` cũng hỗ trợ bản tóm tắt và `view: {kind: "inventory", collection: "occurrences", logical_paths: ["package.json", "main.js"]}`. Bỏ qua `logical_paths` để phân trang tất cả các lần xuất hiện sẵn có; `[]` sẽ không chọn mục nào. Các tập hợp kiểm kê khác là `nodes`, `edges` và `integrity_contradictions`. Giữ tính chất `source_complete` tách biệt khỏi việc duyệt hết trang (page exhaustion): một kết quả khớp bị thiếu trong Evidence nguồn một phần không chứng minh sự vắng mặt. Sử dụng ID Evidence cha được trả về cho các chế độ xem tiếp theo và xuất ra trước khi đóng phiên khi nguồn cần tồn tại sau phiên đó.
+Khi `tools/list` quảng bá `inspect_artifact.detail`, hãy yêu cầu `"summary"` để lưu giữ nguồn đầy đủ của nó và nhận ngay chế độ xem đó. Nếu không có lựa chọn quảng bá đó, hãy giữ nguyên lệnh gọi đầy đủ hiện có. Thao tác kiểm tra qua CLI trả về Evidence đầy đủ khả chuyển; hãy lưu lại trước khi chiếu một chế độ xem nội tuyến đã chọn.
 
-For native procedure/name/string inventories, select `detail: "summary"` when
-the connected tool advertises it and the task needs counts or selected rows.
-Use its parent Evidence ID with
-`view: {kind: "native-inventory", offset: 0, limit: 32, fields: ["value"]}`.
-Search tools retain the existing pattern/mode/case/document selection. Omit
-`fields` for complete records; `record.address` and `source_index` remain on
-selected rows. Selecting `value` keeps its string/decoding qualifications.
-Parent Evidence ID plus source index preserves same-address
-alternatives. Follow `coverage.next_offset` only as far as the question needs;
-exhausting retained rows does not establish complete program discovery.
+Đối với danh mục thủ tục/tên/chuỗi ký tự native, hãy chọn `detail: "summary"` khi công cụ được kết nối có quảng bá nó và tác vụ cần số lượng hoặc các hàng đã chọn. Sử dụng ID Evidence cha của nó với `view: {kind: "native-inventory", offset: 0, limit: 32, fields: ["value"]}`. Các công cụ tìm kiếm vẫn giữ nguyên lựa chọn mẫu/chế độ/chữ hoa-thường/tài liệu hiện có. Bỏ qua `fields` để lấy các bản ghi đầy đủ; `record.address` và `source_index` vẫn còn trên các hàng đã chọn. Việc chọn `value` sẽ giữ nguyên các điều kiện chuỗi/giải mã của nó. ID Evidence cha cùng với chỉ số nguồn sẽ bảo toàn các lựa chọn thay thế cùng địa chỉ. Chỉ theo dõi `coverage.next_offset` đến mức câu hỏi cần; việc duyệt hết các hàng được lưu giữ không chứng minh việc khám phá toàn bộ chương trình.
 
-Use `record_unknown` to track unresolved questions in the user's investigation
-and name the authority or environment still required. Supply supporting and
-contradicting evidence IDs. It updates the session registry directly.
-Use `update_unknown` with the current revision; reread after a stale revision
-instead of retrying blindly. Only qualifying observed evidence can verify a
-resolution.
+Sử dụng `record_unknown` để theo dõi các câu hỏi chưa được giải quyết trong cuộc điều tra của người dùng và nêu rõ thẩm quyền hoặc môi trường vẫn còn cần thiết. Cung cấp các ID bằng chứng hỗ trợ và mâu thuẫn. Lệnh này cập nhật trực tiếp sổ đăng ký của phiên. Sử dụng `update_unknown` với phiên bản sửa đổi (revision) hiện tại; đọc lại sau một revision bị lỗi thời (stale) thay vì thử lại một cách mù quáng. Chỉ có bằng chứng quan sát đủ điều kiện mới có thể xác minh một giải pháp.
 
-Use comparisons with complete, compatible page sets when claiming equivalence
-or absence:
+Sử dụng các phép so sánh với các bộ trang tương thích, đầy đủ khi tuyên bố tính tương đương hoặc sự vắng mặt:
 
-- `compare_artifacts` compares inventory pages by occurrence path, content,
-  metadata, and graph relations. Name each side as
-  `{kind: "retained-evidence", evidence_id}` (an `inspect_artifact` result,
-  its nested inventory or its summary) or
-  `{kind: "evidence-file", path, evidence_id?}` instead of resending Evidence.
-- `compare_functions` compares explicit function Evidence, not fuzzy
-  whole-binary matches. It rejects an `analyze_function` summary reply; pass
-  the summary's `parent_evidence_id` as a `retained-evidence` reference or
-  the complete dossier.
-- `compare_bundles` compares canonical bundle membership and unknown history.
-- `find_changed_behavior` combines existing comparisons; static differences
-  remain candidates, not causal proof.
-- `build_call_path` needs explicit function dossiers from one artifact/provider;
-  an incomplete frontier makes absence unknown.
-- `correlate_static_and_runtime` uses explicit mappings; matching patterns are
-  hypotheses, not causality.
-- `verify_reconstruction` evaluates a finite typed specification. A pass covers
-  only declared comparable claims, not global equivalence.
+- `compare_artifacts` so sánh các trang kiểm kê theo đường dẫn xuất hiện, nội dung, metadata và các mối quan hệ đồ thị. Đặt tên cho mỗi bên dưới dạng `{kind: "retained-evidence", evidence_id}` (kết quả `inspect_artifact`, kho kiểm kê lồng nhau hoặc bản tóm tắt của nó) hoặc `{kind: "evidence-file", path, evidence_id?}` thay vì gửi lại Evidence.
+- `compare_functions` so sánh Evidence hàm rõ ràng, không phải so sánh mờ toàn bộ tệp nhị phân. Nó từ chối phản hồi tóm tắt của `analyze_function`; hãy truyền `parent_evidence_id` của bản tóm tắt làm tham chiếu `retained-evidence` hoặc truyền toàn bộ hồ sơ chi tiết.
+- `compare_bundles` so sánh tư cách thành viên gói chuẩn và lịch sử chưa xác định.
+- `find_changed_behavior` kết hợp các phép so sánh hiện có; các khác biệt tĩnh vẫn là các ứng viên suy luận, không phải bằng chứng quan hệ nhân quả.
+- `build_call_path` cần các hồ sơ hàm rõ ràng từ một hiện vật/provider duy nhất; một ranh giới chưa đầy đủ làm cho sự vắng mặt trở thành chưa xác định.
+- `correlate_static_and_runtime` sử dụng các ánh xạ rõ ràng; các mẫu khớp là các giả thuyết, không phải là quan hệ nhân quả.
+- `verify_reconstruction` đánh giá một đặc tả có kiểu hữu hạn. Một kết quả đạt (pass) chỉ bao gồm các nhận định có thể so sánh được khai báo, không phải sự tương đương toàn cầu.
 
-Process captures are opt-in behavioral evidence, not a security sandbox. V3
-captures cannot be upgraded to V4; rerun the original scenario. Distinguish root
-exit from descendant settlement and require freshness when the task needs it.
-A timed-out target that must write a final report needs `finalization_ms`: REA
-sends SIGTERM to the captured root, keeps observing, and sends SIGKILL once
-only if the target has not exited by the end of the interval.
-`exit.finalization.signals` lists each attempt with its delivery result; the
-observed exit signal stays in `exit.signal`, `exit.code` is null for every
-deadline exit, and the code of a finalizer that exited on its own is in
-`exit.finalization.exit_code` (null on a signal exit or when no exit was
-observed).
+Quá trình thu thập tiến trình (process captures) là bằng chứng hành vi chọn tham gia (opt-in), không phải là môi trường hộp cát bảo mật (security sandbox). Bản ghi capture V3 không thể nâng cấp lên V4; hãy chạy lại kịch bản ban đầu. Phân biệt việc thoát của tiến trình gốc (root exit) với sự ổn định của tiến trình con và yêu cầu tính mới khi tác vụ cần. Một mục tiêu hết thời gian chờ phải ghi báo cáo cuối cùng sẽ cần `finalization_ms`: REA gửi tín hiệu SIGTERM đến tiến trình gốc được thu thập, tiếp tục quan sát, và chỉ gửi SIGKILL một lần duy nhất nếu mục tiêu chưa thoát khi kết thúc khoảng thời gian đó.
+`exit.finalization.signals` liệt kê từng lần thử cùng với kết quả gửi; tín hiệu thoát quan sát được vẫn nằm trong `exit.signal`, `exit.code` là null đối với mỗi lần thoát do hết hạn (deadline exit), và mã của trình hoàn tất đã tự thoát nằm trong `exit.finalization.exit_code` (null khi thoát do tín hiệu hoặc khi không quan sát thấy việc thoát).
 
-Use `inspect_analysis_view` with `view: {kind: "api-surface"}` on retained
-`inspect_web_network_capture` HAR Evidence to group observed request lines by
-method, origin and path template. Format matches are inferences, not handler
-identity or schemas. Group pages cite parent record ordinals; consult record
-coverage and exclusions before claiming completeness. No requests are replayed.
-When the connected schema advertises `include_query_parameter_names`, select
-it in the view for distinct observed names with original record ordinals. Query
-values are omitted; the names establish neither required parameters nor a
-complete server schema. Keep the original parent Evidence for exact URLs.
+Sử dụng `inspect_analysis_view` với `view: {kind: "api-surface"}` trên Evidence HAR được lưu giữ từ `inspect_web_network_capture` để nhóm các dòng yêu cầu quan sát được theo phương thức (method), nguồn gốc (origin) và mẫu đường dẫn (path template). Các kết quả khớp định dạng là suy luận, không phải danh tính trình xử lý hay lược đồ. Các trang nhóm trích dẫn số thứ tự bản ghi gốc của cha; tham khảo phạm vi bao phủ bản ghi và các ngoại lệ trước khi tuyên bố tính đầy đủ. Không có yêu cầu nào được phát lại.
+Khi lược đồ được kết nối quảng bá `include_query_parameter_names`, hãy chọn nó trong chế độ xem cho các tên quan sát được riêng biệt kèm số thứ tự bản ghi gốc. Các giá trị truy vấn bị bỏ qua; các tên không xác lập tham số bắt buộc cũng như lược đồ máy chủ đầy đủ. Giữ Evidence cha ban đầu cho các URL chính xác.
 
-Use `inspect_analysis_view` with `view: {kind: "environment-manifest"}` on the
-same retained HAR Evidence to project the primary origin's request lines into
-named tools with path templates, parameters, observed query names, value-free
-body shapes and record pointers for an agent environment. Opt into
-`template_rules` only when recorded identifiers need them; every template,
-parameter and merged sibling is an inference, no header, cookie or body value is
-copied, and the three stated unknowns stay unresolved.
+Sử dụng `inspect_analysis_view` với `view: {kind: "environment-manifest"}` trên cùng Evidence HAR được lưu giữ để chiếu các dòng yêu cầu của origin chính vào các công cụ được đặt tên với các mẫu đường dẫn, tham số, tên truy vấn quan sát được, hình dạng thân không có giá trị và con trỏ bản ghi cho môi trường tác tử. Chỉ chọn tham gia `template_rules` khi các định danh được ghi lại cần đến chúng; mọi mẫu, tham số và đối tượng cùng cấp được hợp nhất đều là suy luận, không có tiêu đề, cookie hoặc giá trị thân nào được sao chép, và ba điểm chưa xác định đã nêu vẫn chưa được giải quyết.
 
-Use `view: {kind: "environment-state"}` with the manifest's `template_rules` to
-extract the data those reads observed instead: entity types and identity
-fields, entities with recorded values, documents, and per-tool render plans
-checked against the recordings. The state comes only from reads before the
-first related write; types, identity and list membership are inferences. The
-view also gives each state-changing tool a write plan, served only when a later
-recorded read confirms its effect and none contradicts it.
-`rea environment-serve manifest.json --evidence capture.json` derives that
-state at startup, answers read tools from it, serves the write tools whose plan
-is served, each applying its effect to that state, and serves `data/reset`,
-`data/add` and `data/get` on `/agentenv`; other write tools are not served, and
-each plan states why in its `reason`. It replays the capture instead with
-`--replay-only` or when the state is unavailable (not derivable, or a catalog
-over the discovery budget), and its stopped document's `state` says which
-applied.
-Use `view: {kind: "environment-coverage"}` with the same rules to see what an
-environment built from a capture would serve: read tools answered from the
-state or replayed with their reason, and each write tool served or withheld
-with a hint about what to record next; it does not apply the serve-time
-catalog and state size checks. `rea environment-build <capture.har> <dir>`
-inspects, projects and exports in one step and prints the same coverage, or
-`null` when the bundle serves replay.
+Sử dụng `view: {kind: "environment-state"}` với `template_rules` của manifest để trích xuất dữ liệu mà các lần đọc đó đã quan sát: các kiểu thực thể và trường danh tính, các thực thể có giá trị được ghi lại, tài liệu và kế hoạch hiển thị theo từng công cụ được kiểm tra dựa trên các bản ghi. Trạng thái chỉ đến từ các lần đọc trước lần ghi liên quan đầu tiên; các kiểu, danh tính và tư cách thành viên danh sách là suy luận. Chế độ xem này cũng cung cấp cho mỗi công cụ thay đổi trạng thái một kế hoạch ghi, chỉ được cung cấp khi một lần đọc được ghi lại sau đó xác nhận hiệu ứng của nó và không có lần đọc nào mâu thuẫn với nó.
+`rea environment-serve manifest.json --evidence capture.json` suy ra trạng thái đó khi khởi động, trả lời các công cụ đọc từ trạng thái đó, phục vụ các công cụ ghi có kế hoạch được cung cấp, mỗi công cụ áp dụng hiệu ứng của nó vào trạng thái đó, và phục vụ `data/reset`, `data/add` và `data/get` trên `/agentenv`; các công cụ ghi khác không được phục vụ, và mỗi kế hoạch nêu rõ lý do trong trường `reason` của nó. Nó phát lại bản ghi capture thay vào đó với cờ `--replay-only` hoặc khi trạng thái không khả dụng (không thể suy ra, hoặc danh mục vượt quá ngân sách khám phá), và `state` của tài liệu đã dừng nêu rõ trường hợp nào được áp dụng.
+Sử dụng `view: {kind: "environment-coverage"}` với các quy tắc tương tự để xem những gì một môi trường được xây dựng từ một bản ghi capture sẽ phục vụ: các công cụ đọc được trả lời từ trạng thái hoặc được phát lại cùng lý do của chúng, và mỗi công cụ ghi được phục vụ hoặc giữ lại kèm theo gợi ý về những gì cần ghi tiếp theo; nó không áp dụng các kiểm tra kích thước trạng thái và danh mục tại thời điểm phục vụ. Lệnh `rea environment-build <capture.har> <dir>` kiểm tra, chiếu và xuất trong một bước duy nhất và in ra cùng độ bao phủ đó, hoặc `null` khi gói phục vụ phát lại.
 
-For a PE/ELF export question, `inspect_native_exports` accepts `detail: "summary"`
-and retains the complete table. Query `inspect_analysis_view` with
-`view: {kind: "native-exports", collection: "exports", names: ["selected_name"],
-fields: ["name"], offset: 0, limit: 32}` and the reported parent Evidence ID.
-All same-name versions and aliases survive; use `source_index` with the parent ID
-for stable identity. `collection: "issues"` pages interpretation failures. Page
-coverage describes selected retained rows; `summary.coverage` or `exports.coverage`
-still describes the source table, so an empty partial page does not prove absence.
-CLI `inspect-native-exports --detail summary --evidence_output PATH` saves the
-complete bundle for later `inspect-analysis-view --evidence-bundle PATH` requests.
+Đối với câu hỏi về export PE/ELF, `inspect_native_exports` chấp nhận `detail: "summary"` và lưu giữ toàn bộ bảng. Truy vấn `inspect_analysis_view` với `view: {kind: "native-exports", collection: "exports", names: ["selected_name"], fields: ["name"], offset: 0, limit: 32}` và ID Evidence cha được báo cáo. Tất cả các phiên bản và bí danh cùng tên đều tồn tại; sử dụng `source_index` với ID cha để có danh tính ổn định. `collection: "issues"` phân trang các lỗi diễn giải. Độ bao phủ trang mô tả các hàng được lưu giữ đã chọn; `summary.coverage` hoặc `exports.coverage` vẫn mô tả bảng nguồn, do đó một trang một phần trống không chứng minh sự vắng mặt. CLI `inspect-native-exports --detail summary --evidence_output PATH` lưu gói hoàn chỉnh cho các yêu cầu `inspect-analysis-view --evidence-bundle PATH` sau này.
